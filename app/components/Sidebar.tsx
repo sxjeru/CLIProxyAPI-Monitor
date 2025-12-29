@@ -1,0 +1,145 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { BarChart3, FileText, Activity } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+
+const links = [
+  { href: "/", label: "仪表盘", icon: BarChart3 },
+  { href: "/logs", label: "日志", icon: FileText }
+];
+
+export default function Sidebar() {
+  const pathname = usePathname();
+  const [usageStatsEnabled, setUsageStatsEnabled] = useState<boolean | null>(null);
+  const [usageStatsLoading, setUsageStatsLoading] = useState(false);
+  const [showUsageConfirm, setShowUsageConfirm] = useState(false);
+
+  const loadToggle = useCallback(async () => {
+    setUsageStatsLoading(true);
+    try {
+      const res = await fetch("/api/usage-statistics-enabled", { cache: "no-store" });
+      if (!res.ok) throw new Error("load failed");
+      const data = await res.json();
+      setUsageStatsEnabled(Boolean(data["usage-statistics-enabled"]));
+    } catch {
+      setUsageStatsEnabled(null);
+    } finally {
+      setUsageStatsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadToggle();
+  }, [loadToggle]);
+
+  const applyUsageToggle = async (nextEnabled: boolean) => {
+    setUsageStatsLoading(true);
+    try {
+      const res = await fetch("/api/usage-statistics-enabled", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ "usage-statistics-enabled": nextEnabled })
+      });
+      if (!res.ok) throw new Error("toggle failed");
+      const data = await res.json();
+      setUsageStatsEnabled(Boolean(data["usage-statistics-enabled"]));
+    } catch {
+      // ignore
+    } finally {
+      setUsageStatsLoading(false);
+    }
+  };
+
+  const handleUsageToggle = () => {
+    if (usageStatsEnabled === null) return;
+    const nextEnabled = !usageStatsEnabled;
+    if (!nextEnabled) {
+      setShowUsageConfirm(true);
+      return;
+    }
+    applyUsageToggle(nextEnabled);
+  };
+
+  return (
+    <aside className="fixed left-0 top-0 z-40 flex h-screen w-56 flex-col border-r border-slate-800 bg-slate-950 py-6">
+      <div className="px-5">
+        <h1 className="text-xl font-bold text-white">CLIProxy</h1>
+        <p className="text-sm text-slate-500">Usage Dashboard</p>
+      </div>
+      <nav className="mt-8 flex-1 space-y-1 px-3">
+        {links.map(({ href, label, icon: Icon }) => {
+          const active = pathname === href;
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium transition-colors ${
+                active
+                  ? "bg-indigo-600 text-white"
+                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
+              }`}
+            >
+              <Icon className="h-5 w-5" />
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="mt-auto border-t border-slate-800 px-4 pt-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-slate-400">
+            <Activity className="h-4 w-4" />
+            用量数据收集
+          </div>
+          <button
+            onClick={handleUsageToggle}
+            disabled={usageStatsLoading || usageStatsEnabled === null}
+            className={`rounded-full px-3 py-1 text-sm font-semibold transition ${
+              usageStatsEnabled
+                ? "bg-emerald-600 text-white"
+                : "border border-slate-600 text-slate-400"
+            } ${usageStatsLoading ? "opacity-70" : ""}`}
+          >
+            {usageStatsLoading ? "..." : usageStatsEnabled ? "开" : "关"}
+          </button>
+        </div>
+      </div>
+      {showUsageConfirm ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowUsageConfirm(false);
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl bg-slate-900 p-5 shadow-xl ring-1 ring-slate-700">
+            <h3 className="text-lg font-semibold text-white">关闭用量数据收集？</h3>
+            <p className="mt-2 text-sm text-slate-400">关闭后将停止记录使用数据，需要时可再次开启。</p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowUsageConfirm(false)}
+                className="flex-1 rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-800"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUsageConfirm(false);
+                  applyUsageToggle(false);
+                }}
+                className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-500"
+                disabled={usageStatsLoading}
+              >
+                确认关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </aside>
+  );
+}
