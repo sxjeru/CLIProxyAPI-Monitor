@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CartesianGrid, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from "recharts";
 import { formatCompactNumber, formatNumberWithCommas } from "@/lib/utils";
 
 type ExplorePoint = {
@@ -47,7 +47,7 @@ const TOKEN_COLORS = {
   cached: "#c084fc"
 } as const;
 
-const CHART_MARGIN = { top: 8, right: 12, left: 40, bottom: 24 };
+const CHART_MARGIN = { top: 8, right: 12, left: 8, bottom: 12 };
 
 function clamp(num: number, min: number, max: number) {
   return Math.min(Math.max(num, min), max);
@@ -161,6 +161,28 @@ export default function ExplorePage() {
     if (zoomDomain) return zoomDomain;
     return dataBounds;
   }, [dataBounds, zoomDomain]);
+
+  // 计算 Y 轴分布（token 数量的直方图数据）
+  const yDistribution = useMemo(() => {
+    if (!activeDomain || filteredPoints.length === 0) return [];
+    
+    const [yMin, yMax] = activeDomain.y;
+    const binCount = 50; // 更多 bin 使曲线更平滑
+    const binSize = (yMax - yMin) / binCount;
+    const bins = new Array(binCount).fill(0);
+    
+    for (const p of filteredPoints) {
+      if (p.tokens < yMin || p.tokens > yMax) continue;
+      const binIndex = Math.min(Math.floor((p.tokens - yMin) / binSize), binCount - 1);
+      bins[binIndex]++;
+    }
+    
+    // 返回从上到下排列（Y 轴顶部对应高 token 值）
+    return bins.map((count, i) => ({
+      y: yMin + (i + 0.5) * binSize,
+      count
+    })).reverse();
+  }, [activeDomain, filteredPoints]);
 
   // 存储图表区域信息用于坐标转换
   const chartAreaRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -357,11 +379,15 @@ export default function ExplorePage() {
       const fill = modelColorMap.get(model) ?? MODEL_COLORS[0];
       const isHighlighted = highlightedModel === model;
       
+      // 缩放后点变大
+      const baseRadius = zoomDomain ? 5 : 3;
+      const radius = isHighlighted ? baseRadius + 2 : baseRadius;
+      
       return (
         <circle 
           cx={cx} 
           cy={cy} 
-          r={isHighlighted ? 5 : 3} 
+          r={radius} 
           fill={fill} 
           fillOpacity={highlightedModel && !isHighlighted ? 0.15 : 0.6}
           stroke={isHighlighted ? "#fff" : "none"}
@@ -369,7 +395,7 @@ export default function ExplorePage() {
         />
       );
     };
-  }, [modelColorMap, highlightedModel]);
+  }, [modelColorMap, highlightedModel, zoomDomain]);
 
   // 图例交互处理
   const handleLegendMouseEnter = useCallback((model: string) => {
@@ -475,22 +501,62 @@ export default function ExplorePage() {
               <p className="mt-1 text-sm text-slate-500">如果上游 /usage 未提供 details，此图会为空。</p>
             </div>
           ) : (
-            <div 
-              ref={chartContainerRef} 
-              className="relative h-full w-full select-none"
-              onMouseDown={handleContainerMouseDown}
-              onMouseMove={handleContainerMouseMove}
-              onMouseUp={handleContainerMouseUp}
-              onMouseLeave={handleContainerMouseUp}
-            >
-              {/* Brush 选择区域可视化 - 使用绝对定位的 div */}
-              {isBrushing && brushPixelStart && brushPixelEnd && (
-                <div
-                  className="pointer-events-none absolute border border-blue-400/80 bg-blue-400/15"
-                  style={{
-                    left: Math.min(brushPixelStart.x, brushPixelEnd.x),
-                    top: Math.min(brushPixelStart.y, brushPixelEnd.y),
-                    width: Math.abs(brushPixelEnd.x - brushPixelStart.x),
+            <div className="relative flex h-full gap-0">
+              {/* Y 轴分布面积图（竖向，波峰朝左）- 使用绝对定位精确对齐 */}
+              <div 
+                className="absolute left-0 w-16"
+                style={{ 
+                  top: CHART_MARGIN.top - 2, 
+                  height: `calc(94.5% - ${CHART_MARGIN.top}px - ${CHART_MARGIN.bottom}px)` 
+                }}
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart 
+                    data={yDistribution} 
+                    layout="vertical"
+                    margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="yDistGradient" x1="1" y1="0" x2="0" y2="0">
+                        <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.08} />
+                        <stop offset="40%" stopColor="#60a5fa" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.5} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis type="number" hide domain={[0, 'dataMax']} reversed />
+                    <YAxis type="category" dataKey="y" hide />
+                    <Area 
+                      type="basis" 
+                      dataKey="count" 
+                      stroke="#60a5fa" 
+                      strokeWidth={1.5}
+                      strokeOpacity={0.6}
+                      fill="url(#yDistGradient)" 
+                      isAnimationActive={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+              
+              {/* 主散点图 - 左侧留出面积图的空间 */}
+              <div 
+                ref={chartContainerRef} 
+                className="relative flex-1 select-none"
+                style={{ marginLeft: 64 }}
+                onMouseDown={handleContainerMouseDown}
+                onMouseMove={handleContainerMouseMove}
+                onMouseUp={handleContainerMouseUp}
+                onMouseLeave={handleContainerMouseUp}
+                onDoubleClick={zoomDomain ? resetZoom : undefined}
+              >
+                {/* Brush 选择区域可视化 - 使用绝对定位的 div */}
+                {isBrushing && brushPixelStart && brushPixelEnd && (
+                  <div
+                    className="pointer-events-none absolute border border-blue-400/80 bg-blue-400/15"
+                    style={{
+                      left: Math.min(brushPixelStart.x, brushPixelEnd.x),
+                      top: Math.min(brushPixelStart.y, brushPixelEnd.y),
+                      width: Math.abs(brushPixelEnd.x - brushPixelStart.x),
                     height: Math.abs(brushPixelEnd.y - brushPixelStart.y),
                   }}
                 />
@@ -566,6 +632,7 @@ export default function ExplorePage() {
                   <Scatter data={filteredPoints} shape={dotShape} isAnimationActive={false} />
                 </ScatterChart>
               </ResponsiveContainer>
+              </div>
             </div>
           )}
         </div>
