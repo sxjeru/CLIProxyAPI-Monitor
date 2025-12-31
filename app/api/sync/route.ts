@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { eq, sql } from "drizzle-orm";
 import { config, assertEnv } from "@/lib/config";
 import { db } from "@/lib/db/client";
 import { usageRecords } from "@/lib/db/schema";
@@ -107,7 +108,18 @@ async function performSync(request: Request) {
     );
   }
 
-  return NextResponse.json({ status: "ok", inserted: insertedRows.length, attempted: rows.length });
+  // Vercel Postgres may return an empty array even when rows are inserted with RETURNING + ON CONFLICT DO NOTHING.
+  // Fall back to counting rows synced in this run (identified by the shared pulledAt timestamp) to avoid reporting 0.
+  let inserted = insertedRows.length;
+  if (inserted === 0 && rows.length > 0) {
+    const fallback = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(usageRecords)
+      .where(eq(usageRecords.syncedAt, pulledAt));
+    inserted = Number(fallback?.[0]?.count ?? 0);
+  }
+
+  return NextResponse.json({ status: "ok", inserted, attempted: rows.length });
 }
 
 export async function POST(request: Request) {

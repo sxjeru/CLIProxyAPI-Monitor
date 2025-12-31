@@ -30,6 +30,7 @@
 |   |   |
 | --- | --- |
 | <img width="2186" height="1114" alt="image" src="https://github.com/user-attachments/assets/939424fb-1caa-4e80-a9a8-921d1770eb9f" /> | <img width="2112" height="1117" alt="image" src="https://github.com/user-attachments/assets/e5338679-7808-4f37-9753-41b559a3cee6" /> |
+<img width="2518" height="1055" alt="image" src="https://github.com/user-attachments/assets/35d020f8-e398-44d1-b661-6f4b84cbaa20" />
 
 
 ## DEV

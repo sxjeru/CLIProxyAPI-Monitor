@@ -13,7 +13,13 @@ const tokensSchema = z.object({
 const detailSchema = z.object({
   timestamp: z.string().optional(),
   source: z.string().optional(),
-  auth_index: z.number().optional(),
+  // auth_index may arrive as non-numeric string; drop invalid values instead of failing parse
+  auth_index: z
+    .preprocess((value) => {
+      if (value === undefined || value === null) return undefined;
+      const num = Number(value);
+      return Number.isNaN(num) ? undefined : num;
+    }, z.number().optional()),
   tokens: tokensSchema.optional(),
   failed: z.boolean().optional(),
   // 兼容旧格式

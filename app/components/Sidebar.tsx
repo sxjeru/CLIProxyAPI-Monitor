@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, FileText, Activity, LogOut } from "lucide-react";
+import { BarChart3, FileText, Activity, LogOut, Github, ExternalLink } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
+import { Modal } from "./Modal";
 
 const links = [
   { href: "/", label: "仪表盘", icon: BarChart3 },
+  { href: "/explore", label: "数据探索", icon: Activity },
   { href: "/logs", label: "日志", icon: FileText }
 ];
 
@@ -17,6 +19,7 @@ export default function Sidebar() {
   const [usageStatsLoading, setUsageStatsLoading] = useState(false);
   const [showUsageConfirm, setShowUsageConfirm] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [cpamcLink, setCpamcLink] = useState<string | null>(null);
 
   const loadToggle = useCallback(async () => {
     setUsageStatsLoading(true);
@@ -35,6 +38,27 @@ export default function Sidebar() {
   useEffect(() => {
     loadToggle();
   }, [loadToggle]);
+
+  useEffect(() => {
+    let active = true;
+    const loadCpamc = async () => {
+      try {
+        const res = await fetch("/api/management-url", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!active) return;
+        setCpamcLink(typeof data?.url === "string" ? data.url : null);
+      } catch {
+        if (!active) return;
+        setCpamcLink(null);
+      }
+    };
+
+    loadCpamc();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const applyUsageToggle = async (nextEnabled: boolean) => {
     setUsageStatsLoading(true);
@@ -99,9 +123,20 @@ export default function Sidebar() {
             </Link>
           );
         })}
+        {cpamcLink ? (
+          <a
+            href={cpamcLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium transition-colors text-slate-400 hover:bg-slate-800 hover:text-white"
+          >
+            <ExternalLink className="h-5 w-5" />
+            前往 CPAMC
+          </a>
+        ) : null}
       </nav>
 
-      <div className="mt-auto border-t border-slate-800 px-4 pt-4 space-y-3">
+      <div className="mt-auto border-t border-slate-800 px-4 pt-4 pb-2 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-slate-400">
             <Activity className="h-4 w-4" />
@@ -116,52 +151,59 @@ export default function Sidebar() {
                 : "border border-slate-600 text-slate-400"
             } ${usageStatsLoading ? "opacity-70" : ""}`}
           >
-            {usageStatsLoading ? "..." : usageStatsEnabled ? "开" : "关"}
+            {usageStatsLoading ? "..." : usageStatsEnabled ? "ON" : "OFF"}
           </button>
         </div>
         
-        <button
-          onClick={handleLogout}
-          disabled={loggingOut}
-          className="w-full flex items-center justify-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white disabled:opacity-50"
-        >
-          <LogOut className="h-4 w-4" />
-          {loggingOut ? "退出中..." : "退出登录"}
-        </button>
-      </div>
-      {showUsageConfirm ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowUsageConfirm(false);
-          }}
-        >
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 p-5 shadow-xl ring-1 ring-slate-700">
-            <h3 className="text-lg font-semibold text-white">关闭用量数据收集？</h3>
-            <p className="mt-2 text-sm text-slate-400">关闭后将停止记录使用数据，需要时可再次开启。</p>
-            <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setShowUsageConfirm(false)}
-                className="flex-1 rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-800"
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowUsageConfirm(false);
-                  applyUsageToggle(false);
-                }}
-                className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-500"
-                disabled={usageStatsLoading}
-              >
-                确认关闭
-              </button>
-            </div>
-          </div>
+        <div className="flex items-center gap-2">
+          <a
+            href="https://github.com/sxjeru/CLIProxyAPI-Monitor"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center rounded-lg border border-slate-700 p-2 text-slate-500 transition hover:bg-slate-800 hover:text-slate-300"
+          >
+            <Github className="h-4 w-4" />
+          </a>
+          <button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white disabled:opacity-50"
+          >
+            <LogOut className="h-4 w-4" />
+            {loggingOut ? "退出中..." : "退出登录"}
+          </button>
         </div>
-      ) : null}
+      </div>
+      <Modal
+        isOpen={showUsageConfirm}
+        onClose={() => setShowUsageConfirm(false)}
+        title="关闭用量数据收集？"
+        darkMode={true}
+        className="bg-slate-900 ring-1 ring-slate-700"
+        backdropClassName="bg-black/60"
+      >
+        <p className="mt-2 text-sm text-slate-400">关闭后将停止记录使用数据，需要时可再次开启。</p>
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setShowUsageConfirm(false)}
+            className="flex-1 rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-800"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowUsageConfirm(false);
+              applyUsageToggle(false);
+            }}
+            className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-500"
+            disabled={usageStatsLoading}
+          >
+            确认关闭
+          </button>
+        </div>
+      </Modal>
     </aside>
   );
 }
