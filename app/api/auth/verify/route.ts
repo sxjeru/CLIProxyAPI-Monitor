@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const runtime = "nodejs";
+
 const PASSWORD = process.env.PASSWORD || process.env.CLIPROXY_SECRET_KEY || "";
 const COOKIE_NAME = "dashboard_auth";
 const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days
@@ -37,6 +39,16 @@ async function hashPassword(value: string) {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+function decodeBasicToken(encoded: string) {
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(encoded, "base64").toString("utf8");
+  }
+  if (typeof atob === "function") {
+    return atob(encoded);
+  }
+  throw new Error("No base64 decoder available");
+}
+
 export async function POST(request: NextRequest) {
   cleanupExpired();
 
@@ -71,7 +83,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const decoded = atob(authHeader.slice(6));
+    const decoded = decodeBasicToken(authHeader.slice(6));
     const [, providedPassword] = decoded.split(":");
     const providedToken = await hashPassword(providedPassword ?? "");
     const expectedToken = await hashPassword(PASSWORD);

@@ -14,27 +14,7 @@ function authHeaders() {
   };
 }
 
-export async function GET() {
-  try {
-    assertEnv();
-  } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 501 });
-  }
-
-  try {
-    const res = await fetch(endpoint(), { headers: authHeaders(), cache: "no-store" });
-    if (!res.ok) {
-      return NextResponse.json({ error: res.statusText }, { status: res.status });
-    }
-    const data = await res.json();
-    return NextResponse.json(data, { status: 200 });
-  } catch (error) {
-    console.error("/api/usage-statistics-enabled GET failed:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
-  }
-}
-
-export async function POST(request: Request) {
+async function handleToggle(request: Request) {
   try {
     assertEnv();
   } catch (error) {
@@ -63,4 +43,36 @@ export async function POST(request: Request) {
     console.error("/api/usage-statistics-enabled POST failed:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
+}
+
+export async function GET() {
+  try {
+    assertEnv();
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message }, { status: 501 });
+  }
+
+  try {
+    const res = await fetch(endpoint(), { headers: authHeaders(), cache: "no-store" });
+    if (!res.ok) {
+      return NextResponse.json({ error: res.statusText }, { status: res.status });
+    }
+    const data = await res.json();
+    return NextResponse.json(data, { status: 200 });
+  } catch (error) {
+    console.error("/api/usage-statistics-enabled GET failed:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  return handleToggle(request);
+}
+
+export async function PATCH(request: Request) {
+  return handleToggle(request);
+}
+
+export async function PUT(request: Request) {
+  return handleToggle(request);
 }

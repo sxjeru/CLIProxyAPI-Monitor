@@ -64,9 +64,9 @@ export default function Sidebar() {
     setUsageStatsLoading(true);
     try {
       const res = await fetch("/api/usage-statistics-enabled", {
-        method: "POST",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ "usage-statistics-enabled": nextEnabled })
+        body: JSON.stringify({ value: nextEnabled })
       });
       if (!res.ok) throw new Error("toggle failed");
       const data = await res.json();

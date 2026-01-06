@@ -8,6 +8,16 @@ const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days
 const cookieSecure = process.env.NODE_ENV === "production";
 const expectedTokenPromise = password ? hashPassword(password) : null;
 
+function decodeBasicToken(encoded: string) {
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(encoded, "base64").toString("utf8");
+  }
+  if (typeof atob === "function") {
+    return atob(encoded);
+  }
+  throw new Error("No base64 decoder available");
+}
+
 function isBypassedPath(pathname: string) {
   if (pathname.startsWith("/_next")) return true;
   if (pathname.startsWith("/api/sync")) return true;
@@ -37,7 +47,7 @@ async function validateHeader(request: NextRequest, expectedToken: string | null
   const header = request.headers.get("authorization");
   if (!header || !header.startsWith("Basic ")) return { ok: false, token: null };
   try {
-    const decoded = atob(header.slice(6));
+    const decoded = decodeBasicToken(header.slice(6));
     const [, providedPassword] = decoded.split(":");
     const providedToken = await hashPassword(providedPassword ?? "");
     return { ok: providedToken === expectedToken, token: providedToken };
