@@ -135,11 +135,7 @@ function LoginPageContent() {
             }`}>
               <div className="pb-1"> {/* 底部预留微小间距 */}
                 {error && !isLocked && (
-                  <div className={`rounded-lg p-3 text-sm ${
-                    isLocked
-                      ? "bg-red-500/10 border border-red-500/50 text-red-400"
-                      : "bg-orange-500/10 border border-orange-500/50 text-orange-400"
-                  }`}>
+                  <div className="rounded-lg p-3 text-sm bg-orange-500/10 border border-orange-500/50 text-orange-400">
                     <p className="font-medium">{error}</p>
                   </div>
                 )}

@@ -26,25 +26,19 @@ export function Modal({
   const [isClosing, setIsClosing] = useState(false);
   const [cachedChildren, setCachedChildren] = useState<React.ReactNode>(isOpen ? children : null);
   const [cachedTitle, setCachedTitle] = useState<string | undefined>(isOpen ? title : undefined);
-  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
 
-  if (isOpen !== prevIsOpen) {
-    setPrevIsOpen(isOpen);
+  // Handle visibility transitions and initial sync
+  useEffect(() => {
     if (isOpen) {
       setIsVisible(true);
       setIsClosing(false);
       setCachedChildren(children);
       setCachedTitle(title);
-    } else {
+    } else if (isVisible && !isClosing) {
+      // Start closing animation if we are currently visible and not already closing
       setIsClosing(true);
     }
-  }
-
-  // Update cache when children/title changes while open
-  if (isOpen) {
-    if (cachedChildren !== children) setCachedChildren(children);
-    if (cachedTitle !== title) setCachedTitle(title);
-  }
+  }, [isOpen, isVisible, isClosing, children, title]);
 
   useEffect(() => {
     if (isClosing) {
