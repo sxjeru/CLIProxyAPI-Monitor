@@ -46,7 +46,7 @@ const apiSchema = z.object({
   total_tokens: z.number().optional(),
   success_count: z.number().optional(),
   failure_count: z.number().optional(),
-  models: z.record(modelSchema).optional()
+  models: z.record(z.string(), modelSchema).optional()
 });
 
 const usageSchema = z.object({
@@ -54,11 +54,11 @@ const usageSchema = z.object({
   success_count: z.number().optional(),
   failure_count: z.number().optional(),
   total_tokens: z.number().optional(),
-  requests_by_day: z.record(z.number()).optional(),
-  requests_by_hour: z.record(z.number()).optional(),
-  tokens_by_day: z.record(z.number()).optional(),
-  tokens_by_hour: z.record(z.number()).optional(),
-  apis: z.record(apiSchema).optional()
+  requests_by_day: z.record(z.string(), z.number()).optional(),
+  requests_by_hour: z.record(z.string(), z.number()).optional(),
+  tokens_by_day: z.record(z.string(), z.number()).optional(),
+  tokens_by_hour: z.record(z.string(), z.number()).optional(),
+  apis: z.record(z.string(), apiSchema).optional()
 });
 
 const responseSchema = z.object({ usage: usageSchema.optional() });
