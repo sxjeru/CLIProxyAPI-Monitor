@@ -227,3 +227,80 @@ body,
 ::view-transition-new(root) {
   animation-duration: 0.3s;
 }
+
+/* DayPicker 暗色主题适配 */
+.rdp.rdp-dark {
+  --rdp-accent-color: #6366f1;
+  --rdp-background-color: transparent;
+  --rdp-outline: none;
+  color: #e2e8f0;
+}
+
+.rdp.rdp-dark .rdp-button {
+  color: #e2e8f0;
+  border-radius: 0;
+  pointer-events: auto;
+  position: relative;
+}
+
+.rdp.rdp-dark .rdp-button:hover:not([disabled]):not(.rdp-day_selected) {
+  background-color: rgba(30, 41, 59, 0.85);
+  color: #e2e8f0;
+}
+
+/* 范围选择样式 - 创建连续的背景条带 */
+.rdp.rdp-dark .rdp-day_range_start,
+.rdp.rdp-dark .rdp-day_range_end,
+.rdp.rdp-dark .rdp-day_range_middle {
+  position: relative;
+}
+
+.rdp.rdp-dark .rdp-day_range_start::before,
+.rdp.rdp-dark .rdp-day_range_end::before,
+.rdp.rdp-dark .rdp-day_range_middle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(99, 102, 241, 0.25);
+  z-index: -1;
+}
+
+.rdp.rdp-dark .rdp-day_range_start::before {
+  border-radius: 0.5rem 0 0 0.5rem;
+}
+
+.rdp.rdp-dark .rdp-day_range_end::before {
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.rdp.rdp-dark .rdp-day_range_start {
+  border-radius: 0.5rem 0 0 0.5rem;
+}
+
+.rdp.rdp-dark .rdp-day_range_end {
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.rdp.rdp-dark .rdp-day_range_middle {
+  border-radius: 0;
+}
+
+.rdp.rdp-dark .rdp-day_selected,
+.rdp.rdp-dark .rdp-day_range_start,
+.rdp.rdp-dark .rdp-day_range_end {
+  background-color: #4f46e5;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.rdp.rdp-dark .rdp-day_range_middle {
+  color: #e0e7ff;
+}
+
+.rdp.rdp-dark .rdp-day_outside,
+.rdp.rdp-dark .rdp-day_disabled {
+  color: #64748b;
+}
