@@ -238,14 +238,13 @@ body,
 
 .rdp.rdp-dark .rdp-button {
   color: #e2e8f0;
-  border-radius: 0;
   pointer-events: auto;
   position: relative;
 }
 
-.rdp.rdp-dark .rdp-button:hover:not([disabled]):not(.rdp-day_selected) {
-  background-color: rgba(30, 41, 59, 0.85);
-  color: #e2e8f0;
+.rdp.rdp-dark .rdp-button:hover:not([disabled]) {
+  background-color: #6366f1;
+  color: #ffffff;
 }
 
 /* 范围选择样式 - 创建连续的背景条带 */
