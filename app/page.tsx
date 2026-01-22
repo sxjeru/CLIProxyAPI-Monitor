@@ -8,8 +8,12 @@ import { AlertTriangle, Info, LucideIcon, Activity, Save, RefreshCw, Moon, Sun, 
 import type { ModelPrice, UsageOverview, UsageSeriesPoint } from "@/lib/types";
 import { Modal } from "@/app/components/Modal";
 
-// 饼图颜色 - 柔和配色
-const PIE_COLORS = ["#60a5fa", "#4ade80", "#fbbf24", "#c084fc", "#f472b6", "#38bdf8", "#a3e635", "#fb923c"];
+// 饼图颜色
+const PIE_COLORS = [
+  "#60a5fa", "#4ade80", "#fbbf24", "#c084fc", "#f472b6", "#38bdf8", "#a3e635", "#fb923c",
+  "#f87171", "#34d399", "#a78bfa", "#2dd4bf", "#818cf8",
+  "#fb7185", "#86efac", "#fcd34d", "#d946ef", "#67e8f9", "#bef264", "#fdba74", "#c4b5fd"
+];
 
 type OverviewMeta = { page: number; pageSize: number; totalModels: number; totalPages: number };
 type OverviewAPIResponse = { overview: UsageOverview | null; empty: boolean; days: number; meta?: OverviewMeta; filters?: { models: string[]; routes: string[] } };
