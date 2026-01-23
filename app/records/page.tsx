@@ -128,6 +128,12 @@ export default function RecordsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [syncing, setSyncing] = useState(false);
+  const syncingRef = useRef(false);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const syncStatusTimerRef = useRef<number | null>(null);
+  const [syncStatusClosing, setSyncStatusClosing] = useState(false);
+
   const [models, setModels] = useState<string[]>([]);
   const [routes, setRoutes] = useState<string[]>([]);
   const [modelInput, setModelInput] = useState("");
@@ -202,6 +208,65 @@ export default function RecordsPage() {
     },
     [buildParams]
   );
+
+  const closeSyncStatus = useCallback(() => {
+    setSyncStatusClosing(true);
+    setTimeout(() => {
+      setSyncStatus(null);
+      setSyncStatusClosing(false);
+    }, 400);
+  }, []);
+
+  useEffect(() => {
+    if (!syncStatus) return;
+    if (syncStatusTimerRef.current !== null) {
+      window.clearTimeout(syncStatusTimerRef.current);
+    }
+    syncStatusTimerRef.current = window.setTimeout(() => {
+      closeSyncStatus();
+      syncStatusTimerRef.current = null;
+    }, 10000);
+    return () => {
+      if (syncStatusTimerRef.current !== null) {
+        window.clearTimeout(syncStatusTimerRef.current);
+        syncStatusTimerRef.current = null;
+      }
+    };
+  }, [syncStatus, closeSyncStatus]);
+
+  const doSync = useCallback(async (timeout = 60000) => {
+    if (syncingRef.current) return 0;
+    syncingRef.current = true;
+    setSyncing(true);
+    setSyncStatus(null);
+    setError(null);
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      const res = await fetch("/api/sync", {
+        method: "POST",
+        cache: "no-store",
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || res.statusText);
+
+      const inserted = data.inserted ?? 0;
+      if (inserted > 0) {
+        setSyncStatus(`已同步 ${inserted} 条记录`);
+      }
+      return inserted;
+    } catch (err) {
+      setError((err as Error).message || "同步失败");
+      return 0;
+    } finally {
+      syncingRef.current = false;
+      setSyncing(false);
+    }
+  }, []);
 
   const resetAndFetch = useCallback(
     (includeFilters?: boolean) => {
@@ -364,11 +429,21 @@ export default function RecordsPage() {
         </div>
         <div className="flex items-center gap-3 text-sm text-slate-300">
           <button
-            onClick={() => resetAndFetch(false)}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 font-semibold hover:border-slate-500"
+            onClick={async () => {
+              const inserted = await doSync();
+              if (inserted > 0) {
+                resetAndFetch(false);
+              }
+            }}
+            disabled={syncing}
+            className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 font-semibold transition ${
+              syncing
+                ? "cursor-not-allowed border-slate-700 bg-slate-800 text-slate-500"
+                : "border-slate-700 bg-slate-800 text-slate-200 hover:border-slate-500"
+            }`}
           >
-            <RefreshCw className="h-4 w-4" />
-            刷新
+            <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "同步中..." : "刷新"}
           </button>
         </div>
       </header>
@@ -703,6 +778,20 @@ export default function RecordsPage() {
 
         <div ref={sentinelRef} className="h-6" />
       </section>
+
+      {syncStatus && (
+        <div
+          onClick={() => closeSyncStatus()}
+          className={`fixed right-6 top-26 z-50 max-w-[290px] cursor-pointer rounded-lg border px-4 py-3 shadow-lg transition-opacity hover:opacity-90 ${
+            syncStatusClosing ? "animate-toast-out" : "animate-toast-in"
+          } border-green-500/40 bg-green-900/80 text-green-100`}
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl animate-emoji-pop">✅</span>
+            <span className="text-sm font-medium">{syncStatus}</span>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
