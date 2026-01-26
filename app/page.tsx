@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useRef, startTransition, typ
 import { ResponsiveContainer, LineChart, Line, Area, CartesianGrid, XAxis, YAxis, Tooltip, BarChart, Bar, Legend, ComposedChart, PieChart, Pie, Cell } from "recharts";
 import type { TooltipProps } from "recharts";
 import { formatCurrency, formatNumber, formatCompactNumber, formatNumberWithCommas, formatHourLabel } from "@/lib/utils";
-import { AlertTriangle, Info, LucideIcon, Activity, Save, RefreshCw, Moon, Sun, Pencil, Trash2, Maximize2, CalendarRange, X, DollarSign } from "lucide-react";
+import { AlertTriangle, Info, LucideIcon, Activity, Save, RefreshCw, Moon, Sun, Pencil, Trash2, Maximize2, CalendarRange, X, DollarSign, Search } from "lucide-react";
 import type { ModelPrice, UsageOverview, UsageSeriesPoint } from "@/lib/types";
 import { Modal } from "@/app/components/Modal";
 
@@ -718,13 +718,22 @@ export default function DashboardPage() {
     { key: "72h", label: "最近 72 小时" }
   ];
 
+  // 未配置价格的模型选项（排除已有价格的模型）
   const priceModelOptions = useMemo(() => {
-    const names = new Set<string>();
-    modelOptions.forEach((m) => names.add(m));
-    prices.forEach((p) => names.add(p.model));
-    overviewData?.models?.forEach((m) => names.add(m.model));
-    return Array.from(names);
+    const configuredModels = new Set(prices.map(p => p.model));
+    const allModels = new Set<string>();
+    modelOptions.forEach((m) => allModels.add(m));
+    overviewData?.models?.forEach((m) => allModels.add(m.model));
+    return Array.from(allModels).filter(m => !configuredModels.has(m));
   }, [modelOptions, prices, overviewData?.models]);
+
+  // 已配置价格搜索
+  const [priceSearchQuery, setPriceSearchQuery] = useState("");
+  const filteredPrices = useMemo(() => {
+    if (!priceSearchQuery.trim()) return prices;
+    const query = priceSearchQuery.toLowerCase();
+    return prices.filter(p => p.model.toLowerCase().includes(query));
+  }, [prices, priceSearchQuery]);
 
   const sortedModelsByCost = useMemo(() => {
     const models = overviewData?.models ?? [];
@@ -1879,8 +1888,30 @@ export default function DashboardPage() {
           </form>
 
           <div className="lg:col-span-3">
-            <div className="scrollbar-slim grid max-h-[400px] gap-3 overflow-y-auto pr-1">
-              {prices.length ? prices.map((price) => (
+            {/* 搜索框 */}
+            <div className="mb-3">
+              <div className="relative">
+                <Search className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${darkMode ? "text-slate-500" : "text-slate-400"}`} />
+                <input
+                  type="text"
+                  placeholder="搜索已配置的模型..."
+                  value={priceSearchQuery}
+                  onChange={(e) => setPriceSearchQuery(e.target.value)}
+                  className={`w-full rounded-lg border py-2 pl-10 pr-3 text-sm focus:border-indigo-500 focus:outline-none ${darkMode ? "border-slate-700 bg-slate-900 text-white placeholder-slate-500" : "border-slate-300 bg-white text-slate-900 placeholder-slate-400"}`}
+                />
+                {priceSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setPriceSearchQuery("")}
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 ${darkMode ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600"}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="scrollbar-slim grid max-h-[360px] gap-3 overflow-y-auto pr-1">
+              {filteredPrices.length ? filteredPrices.map((price) => (
                 <div key={price.model} className={`flex items-center justify-between rounded-xl border px-4 py-3 ${darkMode ? "border-slate-700 bg-slate-800/50" : "border-slate-200 bg-slate-50"}`}>
                   <div>
                     <p className={`text-base font-semibold ${darkMode ? "text-white" : "text-slate-900"}`}>{price.model}</p>
@@ -1911,7 +1942,9 @@ export default function DashboardPage() {
                 </div>
               )) : (
                 <div className={`flex flex-col items-center justify-center rounded-xl border border-dashed py-8 text-center ${darkMode ? "border-slate-700 bg-slate-800/30" : "border-slate-300 bg-slate-50"}`}>
-                  <p className="text-base text-slate-400">暂无已配置价格</p>
+                  <p className="text-base text-slate-400">
+                    {priceSearchQuery ? "未找到匹配的模型" : "暂无已配置价格"}
+                  </p>
                 </div>
               )}
             </div>
