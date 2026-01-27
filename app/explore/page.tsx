@@ -1480,7 +1480,7 @@ export default function ExplorePage() {
   }, [globalSelection]);
 
     return (
-      <main className="min-h-screen bg-slate-900 px-6 pb-4 pt-8 text-slate-100">
+      <main className="min-h-screen bg-slate-900 px-3 sm:px-6 pb-4 pt-6 sm:pt-8 text-slate-100">
       <header className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">数据探索</h1>

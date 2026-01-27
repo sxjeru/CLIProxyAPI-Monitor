@@ -945,7 +945,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <main className={`min-h-screen px-6 py-8 transition-colors ${darkMode ? "bg-slate-900 text-slate-100" : "bg-slate-50 text-slate-900"}`}>
+    <main className={`min-h-screen px-3 sm:px-6 py-6 sm:py-8 transition-colors ${darkMode ? "bg-slate-900 text-slate-100" : "bg-slate-50 text-slate-900"}`}>
       {overviewError ? (
         <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
@@ -1297,13 +1297,13 @@ export default function DashboardPage() {
         )}
       </section>
 
-      <section className="mt-8 grid gap-6 lg:grid-cols-5">
+      <section className="mt-8 grid gap-6 grid-cols-1 lg:grid-cols-5">
         {loadingOverview || !overviewData ? (
           <div className="lg:col-span-3">
             <Skeleton className="h-[400px] rounded-2xl" />
           </div>
         ) : (
-          <div className={`animate-card-float rounded-2xl p-6 shadow-sm ring-1 lg:col-span-3 flex flex-col ${darkMode ? "bg-slate-800/50 ring-slate-700" : "bg-white ring-slate-200"}`} style={{ animationDelay: '0.15s' }}>
+          <div className={`animate-card-float rounded-2xl p-4 sm:p-6 shadow-sm ring-1 lg:col-span-3 flex flex-col ${darkMode ? "bg-slate-800/50 ring-slate-700" : "bg-white ring-slate-200"}`} style={{ animationDelay: '0.15s' }}>
             <div className="flex items-center justify-between">
               <h2 className={`text-lg font-semibold ${darkMode ? "text-white" : "text-slate-900"}`}>每日用量趋势</h2>
               <div className="flex items-center gap-2">
@@ -1428,8 +1428,8 @@ export default function DashboardPage() {
             <Skeleton className="h-[400px] rounded-2xl" />
           </div>
         ) : (
-          <div className={`animate-card-float rounded-2xl p-6 shadow-sm ring-1 lg:col-span-2 flex flex-col ${darkMode ? "bg-slate-800/50 ring-slate-700" : "bg-white ring-slate-200"}`} style={{ animationDelay: '0.2s' }}>
-            <div className="flex items-center justify-between">
+          <div className={`animate-card-float rounded-2xl p-4 sm:p-6 shadow-sm ring-1 lg:col-span-2 flex flex-col ${darkMode ? "bg-slate-800/50 ring-slate-700" : "bg-white ring-slate-200"}`} style={{ animationDelay: '0.2s' }}>
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <h2 className={`text-lg font-semibold ${darkMode ? "text-white" : "text-slate-900"}`}>模型用量分布</h2>
               <div className="flex items-center gap-2">
                 <div className={`flex items-center gap-1 rounded-lg border p-0.5 ${darkMode ? "border-slate-700 bg-slate-800" : "border-slate-300 bg-slate-100"}`}>
@@ -1456,7 +1456,7 @@ export default function DashboardPage() {
                 </button>
               </div>
             </div>
-            <div className="mt-4 flex gap-4 h-[300px]">
+            <div className="mt-4 flex flex-col sm:flex-row gap-4 min-h-[300px] sm:h-[300px]">
               {showEmpty || overviewData.models.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-700 bg-slate-800/30 text-center">
                   <p className="text-base text-slate-400">暂无模型数据</p>
@@ -1466,7 +1466,7 @@ export default function DashboardPage() {
                 {/* 饼图 */}
                 <div
                   ref={pieChartContainerRef}
-                  className="shrink-0 w-64"
+                  className="shrink-0 w-full sm:w-48 md:w-56 lg:w-48 xl:w-56 h-[200px] sm:h-full"
                   onPointerLeave={() => {
                     cancelPieLegendClear();
                     setPieTooltipOpen(false);
@@ -1594,14 +1594,14 @@ export default function DashboardPage() {
       </section>
 
       {/* 第二行：每小时负载 + 模型费用 */}
-      <section className="mt-6 grid gap-6 lg:grid-cols-5">
+      <section className="mt-6 grid gap-6 grid-cols-1 lg:grid-cols-5">
         {/* 每小时负载分布 */}
         {loadingOverview || !overviewData ? (
           <div className="lg:col-span-3">
             <Skeleton className="h-[400px] rounded-2xl" />
           </div>
         ) : (
-          <div className={`animate-card-float rounded-2xl p-6 shadow-sm ring-1 lg:col-span-3 flex flex-col ${darkMode ? "bg-slate-800/50 ring-slate-700" : "bg-white ring-slate-200"}`} style={{ animationDelay: '0.25s' }}>
+          <div className={`animate-card-float rounded-2xl p-4 sm:p-6 shadow-sm ring-1 lg:col-span-3 flex flex-col ${darkMode ? "bg-slate-800/50 ring-slate-700" : "bg-white ring-slate-200"}`} style={{ animationDelay: '0.25s' }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <h2 className={`text-lg font-semibold ${darkMode ? "text-white" : "text-slate-900"}`}>每小时负载分布</h2>
@@ -1829,8 +1829,8 @@ export default function DashboardPage() {
             ) : null}
           </div>
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-5">
-          <form onSubmit={handleSubmit} className={`rounded-xl border p-5 lg:col-span-2 ${darkMode ? "border-slate-700 bg-slate-800/50" : "border-slate-200 bg-slate-50"}`}>
+          <div className="mt-6 grid gap-6 grid-cols-1 lg:grid-cols-5">
+          <form onSubmit={handleSubmit} className={`rounded-xl border p-4 sm:p-5 lg:col-span-2 ${darkMode ? "border-slate-700 bg-slate-800/50" : "border-slate-200 bg-slate-50"}`}>
             <div className="grid gap-4">
               <label className={`text-sm font-medium ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
                 模型名称

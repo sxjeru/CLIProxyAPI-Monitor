@@ -222,7 +222,7 @@ export default function LogsPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-slate-900 px-6 py-8 text-slate-100">
+    <main className="min-h-screen bg-slate-900 px-3 sm:px-6 py-6 sm:py-8 text-slate-100">
       <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Logs</h1>

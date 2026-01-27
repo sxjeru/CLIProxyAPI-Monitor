@@ -1,13 +1,8 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
+import Sidebar from "./components/Sidebar";
 import ClientLayout from "./components/ClientLayout";
-
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-};
 
 export const metadata: Metadata = {
   title: "CLIProxyAPI Usage Dashboard",
