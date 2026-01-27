@@ -450,6 +450,27 @@ export default function DashboardPage() {
     };
   }, [saveStatus, closeSaveStatus]);
 
+  // 自动清除 pricesSyncStatus toast
+  useEffect(() => {
+    if (pricesSyncStatus.type === 'idle') return;
+    
+    if (pricesSyncStatusTimerRef.current !== null) {
+      window.clearTimeout(pricesSyncStatusTimerRef.current);
+    }
+    
+    pricesSyncStatusTimerRef.current = window.setTimeout(() => {
+      setPricesSyncStatus({ type: 'idle' });
+      pricesSyncStatusTimerRef.current = null;
+    }, 8000);
+    
+    return () => {
+      if (pricesSyncStatusTimerRef.current !== null) {
+        window.clearTimeout(pricesSyncStatusTimerRef.current);
+        pricesSyncStatusTimerRef.current = null;
+      }
+    };
+  }, [pricesSyncStatus]);
+
   const applyTheme = useCallback((nextDark: boolean) => {
     setDarkMode(nextDark);
     if (typeof document !== "undefined") {
@@ -568,8 +589,6 @@ export default function DashboardPage() {
       setPricesSyncData({ error: errorMsg });
     } finally {
       setSyncingPrices(false);
-      if (pricesSyncStatusTimerRef.current) clearTimeout(pricesSyncStatusTimerRef.current);
-      pricesSyncStatusTimerRef.current = window.setTimeout(() => setPricesSyncStatus({ type: 'idle' }), 8000);
     }
   }, [syncingPrices]);
 
