@@ -26,7 +26,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   return (
     <>
       <Sidebar />
-      <div className="ml-56 min-h-screen">{children}</div>
+      <div className="min-h-screen pt-14 md:pt-0 md:ml-56">{children}</div>
     </>
   );
 }

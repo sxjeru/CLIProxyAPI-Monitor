@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, FileText, Activity, LogOut, Github, ExternalLink, Table } from "lucide-react";
+import { BarChart3, FileText, Activity, LogOut, Github, ExternalLink, Table, Menu, X } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { Modal } from "./Modal";
 
@@ -15,6 +15,7 @@ const links = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const router = useRouter();
   const [usageStatsEnabled, setUsageStatsEnabled] = useState<boolean | null>(null);
   const [usageStatsLoading, setUsageStatsLoading] = useState(false);
@@ -100,13 +101,67 @@ export default function Sidebar() {
     }
   };
 
+  // 路由变化时关闭移动端菜单
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // 移动端打开时禁止背景滚动
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileOpen]);
+
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-56 flex-col border-r border-slate-800 bg-slate-950 py-6">
-      <div className="px-5">
-        <h1 className="text-xl font-bold text-white">CLIProxyAPI</h1>
-        <p className="text-sm text-slate-500">Usage Dashboard</p>
-      </div>
-      <nav className="mt-8 flex-1 space-y-1 px-3">
+    <>
+      {/* 移动端顶栏 */}
+      <header className="fixed left-0 top-0 right-0 z-50 flex h-14 items-center justify-between border-b border-slate-800 bg-slate-950 px-4 md:hidden">
+        <div>
+          <h1 className="text-lg font-bold text-white">CLIProxyAPI</h1>
+        </div>
+        <button
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition"
+          aria-label="Toggle menu"
+        >
+          {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </button>
+      </header>
+
+      {/* 移动端遮罩层 */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* 侧边栏 */}
+      <aside
+        className={`fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-slate-800 bg-slate-950 py-6 transition-transform duration-300 ease-in-out md:z-40 md:w-56 md:translate-x-0 ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="px-5 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-white">CLIProxyAPI</h1>
+            <p className="text-sm text-slate-500">Usage Dashboard</p>
+          </div>
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition md:hidden"
+            aria-label="Close menu"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <nav className="mt-8 flex-1 space-y-1 px-3 overflow-y-auto">
         {links.map(({ href, label, icon: Icon }) => {
           const active = pathname === href;
           return (
@@ -206,5 +261,6 @@ export default function Sidebar() {
         </div>
       </Modal>
     </aside>
+    </>
   );
 }
