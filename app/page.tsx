@@ -1084,74 +1084,78 @@ export default function DashboardPage() {
             自定义
           </button>
           {customPickerOpen ? (
-            <div className={`absolute left-0 mt-2 w-72 rounded-xl border p-4 shadow-xl ${darkMode ? "border-slate-700 bg-slate-900" : "border-slate-200 bg-white"}`}>
-              <div className={`grid gap-3 text-xs ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
-                <label className={darkMode ? "text-slate-300" : "text-slate-700"}>
-                  开始日期
-                  <input
-                    type="date"
-                    className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${darkMode ? "border-slate-700 bg-slate-800 text-white" : "border-slate-300 bg-white text-slate-900"}`}
-                    value={customDraftStart}
-                    max={customDraftEnd || undefined}
-                    onChange={(e) => setCustomDraftStart(e.target.value)}
-                  />
-                </label>
-                <label className={darkMode ? "text-slate-300" : "text-slate-700"}>
-                  结束日期
-                  <input
-                    type="date"
-                    className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${darkMode ? "border-slate-700 bg-slate-800 text-white" : "border-slate-300 bg-white text-slate-900"}`}
-                    value={customDraftEnd}
-                    min={customDraftStart || undefined}
-                    onChange={(e) => setCustomDraftEnd(e.target.value)}
-                  />
-                </label>
-              </div>
-              {customError ? (
-                <p className="mt-2 text-xs text-red-400">{customError}</p>
-              ) : null}
-              <div className="mt-3 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCustomPickerOpen(false);
-                    setCustomError(null);
-                    setCustomDraftStart(customStart);
-                    setCustomDraftEnd(customEnd);
-                  }}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium ${darkMode ? "text-slate-300 hover:bg-slate-800" : "text-slate-700 hover:bg-slate-100"}`}
-                >
-                  取消
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!customDraftStart || !customDraftEnd) {
-                      setCustomError("请选择开始和结束日期");
-                      return;
-                    }
-                    const startDate = new Date(customDraftStart);
-                    const endDate = new Date(customDraftEnd);
-                    if (!Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime())) {
-                      setCustomError("日期无效");
-                      return;
-                    }
-                    if (endDate < startDate) {
-                      setCustomError("结束日期需不早于开始日期");
-                      return;
-                    }
-                    setCustomError(null);
-                    setCustomStart(customDraftStart);
-                    setCustomEnd(customDraftEnd);
-                    setRangeMode("custom");
-                    setPage(1);
-                    setCustomPickerOpen(false);
-                    setRefreshTrigger((prev) => prev + 1);
-                  }}
-                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500"
-                >
-                  应用
-                </button>
+            <div
+              className={`absolute z-30 mt-2 w-72 rounded-xl border p-4 shadow-2xl ${darkMode ? "border-slate-700 bg-slate-900" : "border-slate-200 bg-white"}`}
+            >
+              <div className="space-y-3 text-sm">
+                <div className="grid grid-cols-1 gap-2">
+                  <label className={darkMode ? "text-slate-300" : "text-slate-700"}>
+                    开始日期
+                    <input
+                      type="date"
+                      className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${darkMode ? "border-slate-700 bg-slate-800 text-white" : "border-slate-300 bg-white text-slate-900"}`}
+                      value={customDraftStart}
+                      max={customDraftEnd || undefined}
+                      onChange={(e) => setCustomDraftStart(e.target.value)}
+                    />
+                  </label>
+                  <label className={darkMode ? "text-slate-300" : "text-slate-700"}>
+                    结束日期
+                    <input
+                      type="date"
+                      className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${darkMode ? "border-slate-700 bg-slate-800 text-white" : "border-slate-300 bg-white text-slate-900"}`}
+                      value={customDraftEnd}
+                      min={customDraftStart || undefined}
+                      onChange={(e) => setCustomDraftEnd(e.target.value)}
+                    />
+                  </label>
+                </div>
+                {customError ? (
+                  <p className="text-xs text-red-400">{customError}</p>
+                ) : null}
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomPickerOpen(false);
+                      setCustomError(null);
+                      setCustomDraftStart(customStart);
+                      setCustomDraftEnd(customEnd);
+                    }}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium ${darkMode ? "text-slate-300 hover:bg-slate-800" : "text-slate-700 hover:bg-slate-100"}`}
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!customDraftStart || !customDraftEnd) {
+                        setCustomError("请选择开始和结束日期");
+                        return;
+                      }
+                      const startDate = new Date(customDraftStart);
+                      const endDate = new Date(customDraftEnd);
+                      if (!Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime())) {
+                        setCustomError("日期无效");
+                        return;
+                      }
+                      if (endDate < startDate) {
+                        setCustomError("结束日期需不早于开始日期");
+                        return;
+                      }
+                      setCustomError(null);
+                      setCustomStart(customDraftStart);
+                      setCustomEnd(customDraftEnd);
+                      setRangeMode("custom");
+                      setPage(1);
+                      setCustomPickerOpen(false);
+                      setRefreshTrigger((prev) => prev + 1);
+                    }}
+                    className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500"
+                  >
+                    应用
+                  </button>
+                </div>
               </div>
             </div>
           ) : null}
