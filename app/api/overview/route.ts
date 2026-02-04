@@ -69,10 +69,14 @@ export async function GET(request: Request) {
 
     const page = pageParam ? Number.parseInt(pageParam, 10) : undefined;
     const pageSize = pageSizeParam ? Number.parseInt(pageSizeParam, 10) : undefined;
+    const skipCacheParam = searchParams.get("skipCache");
+    const skipCache = skipCacheParam === "1" || skipCacheParam === "true";
     const cacheKey = makeCacheKey({ days, model, route, page, pageSize, start, end });
-    const cached = getCached(cacheKey);
-    if (cached) {
-      return NextResponse.json(cached, { status: 200 });
+    if (!skipCache) {
+      const cached = getCached(cacheKey);
+      if (cached) {
+        return NextResponse.json(cached, { status: 200 });
+      }
     }
 
     const { overview, empty, days: appliedDays, meta, filters } = await getOverview(days, {

@@ -201,6 +201,7 @@ export default function DashboardPage() {
   const pieChartFullscreenContainerRef = useRef<HTMLDivElement | null>(null);
   const pieLegendClearTimerRef = useRef<number | null>(null);
   const syncingRef = useRef(false);
+  const skipOverviewCacheRef = useRef(false);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [syncingPrices, setSyncingPrices] = useState(false);
   // const [pricesSyncStatus, setPricesSyncStatus] = useState<SyncStatus>({ type: 'idle' }); // 已禁用 toast 通知
@@ -532,7 +533,10 @@ export default function DashboardPage() {
             window.localStorage.setItem("lastSyncStatus", successMsg);
           }
         }
-        if (triggerRefresh && inserted > 0) setRefreshTrigger((prev) => prev + 1);
+          if (triggerRefresh && inserted > 0) {
+            skipOverviewCacheRef.current = true;
+            setRefreshTrigger((prev) => prev + 1);
+          }
       }
     } catch (err) {
       // 判断是否为超时错误
@@ -634,7 +638,7 @@ export default function DashboardPage() {
 
     const run = async () => {
       try {
-        await doSync(true, false, 5000); // 首屏加载使用 5 秒超时
+        await doSync(true, true, 5000); // 首屏加载使用 5 秒超时
         if (typeof window !== "undefined") {
           window.sessionStorage.setItem(autoSyncKey, "1");
         }
@@ -691,6 +695,11 @@ export default function DashboardPage() {
         if (filterRoute) params.set("route", filterRoute);
         params.set("page", String(page));
         params.set("pageSize", "500");
+
+        if (skipOverviewCacheRef.current) {
+          params.set("skipCache", "1");
+          skipOverviewCacheRef.current = false;
+        }
 
         const res = await fetch(`/api/overview?${params.toString()}`, { cache: "no-store", signal: controller.signal });
 
