@@ -13,13 +13,12 @@ const tokensSchema = z.object({
 const detailSchema = z.object({
   timestamp: z.string().optional(),
   source: z.string().optional(),
-  // auth_index may arrive as non-numeric string; drop invalid values instead of failing parse
+  // auth_index is a hex string (16 characters from SHA-256 hash)
   auth_index: z
     .preprocess((value) => {
       if (value === undefined || value === null) return undefined;
-      const num = Number(value);
-      return Number.isNaN(num) ? undefined : num;
-    }, z.number().optional()),
+      return String(value);
+    }, z.string().optional()),
   tokens: tokensSchema.optional(),
   failed: z.boolean().optional(),
   // 兼容旧格式
@@ -87,7 +86,12 @@ export function parseUsagePayload(json: unknown): UsageResponse {
   return responseSchema.parse(json);
 }
 
-export function toUsageRecords(payload: UsageResponse, pulledAt: Date = new Date()): UsageRecordInsert[] {
+export function toUsageRecords(
+  payload: UsageResponse,
+  pulledAt: Date = new Date(),
+  authMap?: Map<string, string>,
+  apiKeyMap?: Map<string, string>
+): UsageRecordInsert[] {
   const apis = payload.usage?.apis as Record<string, ApiParsed> | undefined;
   if (!apis) return [];
 
@@ -104,12 +108,25 @@ export function toUsageRecords(payload: UsageResponse, pulledAt: Date = new Date
           const tokenSlice = parseDetailTokens(detail);
           const occurredAt = parseDetailTimestamp(detail, pulledAt);
           const success = isDetailSuccess(detail);
+          const authIdx = detail.auth_index ?? undefined;
+          const source = detail.source ?? undefined;
+          let channel: string | undefined = authIdx && authMap?.get(authIdx)
+            ? authMap.get(authIdx)
+            : undefined;
+          if (!channel && source && apiKeyMap?.get(source)) {
+            channel = apiKeyMap.get(source);
+          }
+          if (!channel) {
+            channel = authIdx;
+          }
 
           rows.push({
             occurredAt,
             syncedAt: pulledAt,
             route,
             model,
+            authIndex: authIdx ?? null,
+            channel: channel ?? null,
             totalTokens: tokenSlice.totalTokens,
             inputTokens: tokenSlice.inputTokens,
             outputTokens: tokenSlice.outputTokens,

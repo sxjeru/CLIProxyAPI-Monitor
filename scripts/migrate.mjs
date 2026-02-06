@@ -1,9 +1,25 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { drizzle } from "drizzle-orm/vercel-postgres";
 import { createPool } from "@vercel/postgres";
 import { migrate } from "drizzle-orm/vercel-postgres/migrator";
+
+// 加载 .env.local（Next.js 不会为独立 Node 脚本加载）
+for (const envFile of [".env.local", ".env"]) {
+  if (existsSync(envFile)) {
+    for (const line of readFileSync(envFile, "utf8").split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const idx = trimmed.indexOf("=");
+      if (idx === -1) continue;
+      const key = trimmed.slice(0, idx).trim();
+      const val = trimmed.slice(idx + 1).trim();
+      if (!process.env[key]) process.env[key] = val;
+    }
+    break;
+  }
+}
 
 const pool = createPool({
   connectionString: process.env.DATABASE_URL || process.env.POSTGRES_URL
@@ -54,14 +70,33 @@ async function runMigrations() {
     if (tableExists.rows.length > 0) {
       // 找出 0000 迁移
       const initialMigration = allMigrations.find((m) => m.tag.startsWith("0000_"));
-      
+
       if (initialMigration && !existingHashes.has(initialMigration.hash)) {
         console.log("检测到表已存在但迁移未标记，正在标记...");
         await pool.query(
           "INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ($1, $2)",
           [initialMigration.hash, initialMigration.createdAt]
         );
+        existingHashes.add(initialMigration.hash);
         console.log("✓ 已标记 0000 迁移");
+      }
+
+      // 检查 0001 迁移（DROP total_requests/success_count/failure_count）
+      // 如果这些列已不存在，说明 0001 已在结构上生效，需要标记
+      const migration0001 = allMigrations.find((m) => m.tag.startsWith("0001_"));
+      if (migration0001 && !existingHashes.has(migration0001.hash)) {
+        const columnsResult = await pool.query(
+          "SELECT column_name FROM information_schema.columns WHERE table_name = 'usage_records' AND column_name IN ('total_requests', 'success_count', 'failure_count')"
+        );
+        if (columnsResult.rows.length === 0) {
+          console.log("检测到 0001 迁移已在结构上生效但未标记，正在标记...");
+          await pool.query(
+            "INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ($1, $2)",
+            [migration0001.hash, migration0001.createdAt]
+          );
+          existingHashes.add(migration0001.hash);
+          console.log("✓ 已标记 0001 迁移");
+        }
       }
     }
 

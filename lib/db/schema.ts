@@ -17,6 +17,8 @@ export const usageRecords = pgTable(
     syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow().notNull(),
     route: text("route").notNull(),
     model: text("model").notNull(),
+    authIndex: text("auth_index"),
+    channel: text("channel"),
     totalTokens: integer("total_tokens").notNull(),
     inputTokens: integer("input_tokens").notNull(),
     outputTokens: integer("output_tokens").notNull(),
