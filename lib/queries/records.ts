@@ -7,6 +7,7 @@ export type UsageRecordRow = {
   id: number;
   occurredAt: Date;
   route: string;
+  channel: string | null;
   model: string;
   totalTokens: number;
   inputTokens: number;
@@ -26,6 +27,7 @@ type SortField =
   | "occurredAt"
   | "model"
   | "route"
+  | "channel"
   | "totalTokens"
   | "inputTokens"
   | "outputTokens"
@@ -120,6 +122,7 @@ export async function getUsageRecords(input: {
   cursor?: string | null;
   model?: string | null;
   route?: string | null;
+  channel?: string | null;
   start?: string | null;
   end?: string | null;
   includeFilters?: boolean;
@@ -153,12 +156,18 @@ export async function getUsageRecords(input: {
     whereParts.push(eq(usageRecords.route, input.route));
   }
 
+  if (input.channel) {
+    whereParts.push(eq(usageRecords.channel, input.channel));
+  }
+
   const sortExpr = (() => {
     switch (sortField) {
       case "model":
         return usageRecords.model;
       case "route":
         return usageRecords.route;
+      case "channel":
+        return usageRecords.channel;
       case "totalTokens":
         return usageRecords.totalTokens;
       case "inputTokens":
@@ -189,6 +198,7 @@ export async function getUsageRecords(input: {
       id: usageRecords.id,
       occurredAt: usageRecords.occurredAt,
       route: usageRecords.route,
+      channel: usageRecords.channel,
       model: usageRecords.model,
       totalTokens: usageRecords.totalTokens,
       inputTokens: usageRecords.inputTokens,
@@ -225,6 +235,8 @@ export async function getUsageRecords(input: {
           return Number(last.cost ?? 0);
         case "route":
           return last.route;
+        case "channel":
+          return last.channel ?? "";
         case "inputTokens":
           return last.inputTokens;
         case "outputTokens":
@@ -244,9 +256,9 @@ export async function getUsageRecords(input: {
     return Buffer.from(JSON.stringify(cursorPayload)).toString("base64");
   })();
 
-  let filters: { models: string[]; routes: string[] } | undefined;
+  let filters: { models: string[]; routes: string[]; channels: string[] } | undefined;
   if (input.includeFilters) {
-    const [modelRows, routeRows] = await Promise.all([
+    const [modelRows, routeRows, channelRows] = await Promise.all([
       db
         .select({ model: usageRecords.model })
         .from(usageRecords)
@@ -260,9 +272,20 @@ export async function getUsageRecords(input: {
         .where(where)
         .groupBy(usageRecords.route)
         .orderBy(usageRecords.route)
+        .limit(200),
+      db
+        .select({ channel: usageRecords.channel })
+        .from(usageRecords)
+        .where(where)
+        .groupBy(usageRecords.channel)
+        .orderBy(usageRecords.channel)
         .limit(200)
     ]);
-    filters = { models: modelRows.map((row) => row.model), routes: routeRows.map((row) => row.route) };
+    filters = {
+      models: modelRows.map((row) => row.model),
+      routes: routeRows.map((row) => row.route),
+      channels: channelRows.map((row) => row.channel).filter(Boolean) as string[]
+    };
   }
 
   return {

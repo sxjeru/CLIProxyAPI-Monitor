@@ -15,6 +15,13 @@
       "when": 1769060000000,
       "tag": "0001_remove_request_counts",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1738800000000,
+      "tag": "0002_add_channel_tracking",
+      "breakpoints": true
     }
   ]
 }

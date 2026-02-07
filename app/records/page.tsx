@@ -11,6 +11,7 @@ type UsageRecord = {
   id: number;
   occurredAt: string;
   route: string;
+  channel: string | null;
   model: string;
   totalTokens: number;
   inputTokens: number;
@@ -24,13 +25,14 @@ type UsageRecord = {
 type RecordsResponse = {
   items: UsageRecord[];
   nextCursor: string | null;
-  filters?: { models: string[]; routes: string[] };
+  filters?: { models: string[]; routes: string[]; channels: string[] };
 };
 
 type SortField =
   | "occurredAt"
   | "model"
   | "route"
+  | "channel"
   | "totalTokens"
   | "inputTokens"
   | "outputTokens"
@@ -138,8 +140,10 @@ export default function RecordsPage() {
 
   const [models, setModels] = useState<string[]>([]);
   const [routes, setRoutes] = useState<string[]>([]);
+  const [channels, setChannels] = useState<string[]>([]);
   const [modelInput, setModelInput] = useState("");
   const [routeInput, setRouteInput] = useState("");
+  const [channelInput, setChannelInput] = useState("");
   const [startInput, setStartInput] = useState("");
   const [endInput, setEndInput] = useState("");
   const [rangePickerOpen, setRangePickerOpen] = useState(false);
@@ -151,6 +155,7 @@ export default function RecordsPage() {
 
   const [appliedModel, setAppliedModel] = useState<string>("");
   const [appliedRoute, setAppliedRoute] = useState<string>("");
+  const [appliedChannel, setAppliedChannel] = useState<string>("");
   const [appliedStart, setAppliedStart] = useState<string>("");
   const [appliedEnd, setAppliedEnd] = useState<string>("");
 
@@ -172,12 +177,13 @@ export default function RecordsPage() {
       if (cursorValue) params.set("cursor", cursorValue);
       if (appliedModel) params.set("model", appliedModel);
       if (appliedRoute) params.set("route", appliedRoute);
+      if (appliedChannel) params.set("channel", appliedChannel);
       if (appliedStart) params.set("start", new Date(appliedStart).toISOString());
       if (appliedEnd) params.set("end", new Date(appliedEnd).toISOString());
       if (includeFilters) params.set("includeFilters", "1");
       return params;
     },
-    [sortField, sortOrder, appliedModel, appliedRoute, appliedStart, appliedEnd]
+    [sortField, sortOrder, appliedModel, appliedRoute, appliedChannel, appliedStart, appliedEnd]
   );
 
   const fetchRecords = useCallback(
@@ -200,6 +206,9 @@ export default function RecordsPage() {
         }
         if (data.filters?.routes?.length) {
           setRoutes(data.filters.routes);
+        }
+        if (data.filters?.channels?.length) {
+          setChannels(data.filters.channels);
         }
       } catch (err) {
         setError((err as Error).message || "加载失败");
@@ -315,13 +324,15 @@ export default function RecordsPage() {
     resetAndFetch(false);
   }, [sortField, sortOrder, resetAndFetch]);
 
-  const applyFilters = (overrides?: { model?: string; route?: string; start?: string; end?: string }) => {
+  const applyFilters = (overrides?: { model?: string; route?: string; channel?: string; start?: string; end?: string }) => {
     const nextModel = (overrides?.model ?? modelInput).trim();
     const nextRoute = (overrides?.route ?? routeInput).trim();
+    const nextChannel = (overrides?.channel ?? channelInput).trim();
     const nextStart = overrides?.start ?? startInput;
     const nextEnd = overrides?.end ?? endInput;
     setAppliedModel(nextModel);
     setAppliedRoute(nextRoute);
+    setAppliedChannel(nextChannel);
     setAppliedStart(nextStart);
     setAppliedEnd(nextEnd);
   };
@@ -336,9 +347,14 @@ export default function RecordsPage() {
     setAppliedRoute(val.trim());
   };
 
+  const applyChannelOption = (val: string) => {
+    setChannelInput(val);
+    setAppliedChannel(val.trim());
+  };
+
   useEffect(() => {
     resetAndFetch(false);
-  }, [appliedModel, appliedRoute, appliedStart, appliedEnd, resetAndFetch]);
+  }, [appliedModel, appliedRoute, appliedChannel, appliedStart, appliedEnd, resetAndFetch]);
 
   const costTone = useCallback((cost: number) => {
     if (cost >= 5) return "bg-red-500/20 text-red-300 ring-1 ring-red-500/40";
@@ -357,13 +373,14 @@ export default function RecordsPage() {
     const parts: string[] = [];
     if (appliedModel) parts.push(`模型: ${appliedModel}`);
     if (appliedRoute) parts.push(`密钥: ${appliedRoute}`);
+    if (appliedChannel) parts.push(`渠道: ${appliedChannel}`);
     if (appliedStart || appliedEnd) {
       const startLabel = appliedStart ? formatDateTimeDisplay(appliedStart) : "-";
       const endLabel = appliedEnd ? formatDateTimeDisplay(appliedEnd) : "-";
       parts.push(`时间: ${startLabel} ~ ${endLabel}`);
     }
     return parts.length ? parts.join(" / ") : "暂无筛选";
-  }, [appliedModel, appliedRoute, appliedStart, appliedEnd]);
+  }, [appliedModel, appliedRoute, appliedChannel, appliedStart, appliedEnd]);
 
   const rangeLabel = useMemo(() => {
     if (!startInput && !endInput) return "选择时间范围";
@@ -481,6 +498,18 @@ export default function RecordsPage() {
               setAppliedRoute("");
             }}
           />
+          <ComboBox
+            value={channelInput}
+            onChange={setChannelInput}
+            options={channels}
+            placeholder="按渠道过滤"
+            darkMode={true}
+            onSelectOption={applyChannelOption}
+            onClear={() => {
+              setChannelInput("");
+              setAppliedChannel("");
+            }}
+          />
 
           <div className="relative" ref={rangePickerRef}>
             <button
@@ -595,10 +624,12 @@ export default function RecordsPage() {
               onClick={() => {
                 setModelInput("");
                 setRouteInput("");
+                setChannelInput("");
                 setStartInput("");
                 setEndInput("");
                 setAppliedModel("");
                 setAppliedRoute("");
+                setAppliedChannel("");
                 setAppliedStart("");
                 setAppliedEnd("");
               }}
@@ -638,6 +669,14 @@ export default function RecordsPage() {
                     active={sortField === "route"}
                     order={sortOrder}
                     onClick={() => handleSort("route")}
+                  />
+                </th>
+                <th className="px-3 py-2 w-52">
+                  <SortHeader
+                    label="渠道"
+                    active={sortField === "channel"}
+                    order={sortOrder}
+                    onClick={() => handleSort("channel")}
                   />
                 </th>
                 <th className="px-3 py-2 w-28">
@@ -716,6 +755,11 @@ export default function RecordsPage() {
                   <td className="px-3 py-3 first:rounded-l-lg last:rounded-r-lg">
                     <div className="max-w-[200px] truncate text-slate-300" title={row.route}>
                       {row.route}
+                    </div>
+                  </td>
+                  <td className="px-3 py-3 first:rounded-l-lg last:rounded-r-lg">
+                    <div className="max-w-[200px] truncate text-slate-300" title={row.channel ?? ""}>
+                      {row.channel ?? "-"}
                     </div>
                   </td>
                   <td className="px-3 py-3 first:rounded-l-lg last:rounded-r-lg">
