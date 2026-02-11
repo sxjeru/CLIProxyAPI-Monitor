@@ -30,6 +30,7 @@ export async function GET(request: Request) {
     const cursor = searchParams.get("cursor");
     const model = searchParams.get("model");
     const route = searchParams.get("route");
+    const channel = searchParams.get("channel");
     const start = searchParams.get("start");
     const end = searchParams.get("end");
     const includeFilters = searchParams.get("includeFilters") === "1";
@@ -43,6 +44,7 @@ export async function GET(request: Request) {
       cursor,
       model: model || undefined,
       route: route || undefined,
+      channel: channel || undefined,
       start,
       end,
       includeFilters
