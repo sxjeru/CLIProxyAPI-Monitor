@@ -25,7 +25,7 @@ type TotalsRow = {
   successCount: number;
   failureCount: number;
 };
-type DayAggRow = { label: string; requests: number; tokens: number };
+type DayAggRow = { label: string; requests: number; errors: number; tokens: number };
 type DayModelAggRow = { label: string; model: string; inputTokens: number; outputTokens: number; reasoningTokens: number; cachedTokens: number };
 type HourAggRow = { 
   label: string;
@@ -151,6 +151,7 @@ export async function getOverview(
     .select({
       label: sql<string>`to_char(${dayExpr}, 'YYYY-MM-DD')`,
       requests: sql<number>`count(*)`,
+      errors: sql<number>`coalesce(sum(case when ${usageRecords.isError} then 1 else 0 end), 0)`,
       tokens: sql<number>`sum(${usageRecords.totalTokens})`
     })
     .from(usageRecords)
@@ -277,6 +278,7 @@ export async function getOverview(
   const byDay: UsageSeriesPoint[] = [...byDayRows].reverse().map((row) => ({
     label: row.label,
     requests: toNumber(row.requests),
+    errors: toNumber(row.errors),
     tokens: toNumber(row.tokens),
     cost: Number((dailyCostMap.get(row.label) ?? 0).toFixed(2))
   }));

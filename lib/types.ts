@@ -17,6 +17,7 @@ export type ModelUsage = {
 export type UsageSeriesPoint = {
   label: string;
   requests: number;
+  errors?: number;
   tokens: number;
   cost?: number;
   inputTokens?: number;

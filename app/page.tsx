@@ -1396,7 +1396,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={overviewData.byDay} margin={{ top: 0, right: 12, left: 0, bottom: 0 }}>
+                <ComposedChart data={overviewData.byDay} margin={{ top: 0, right: 12, left: 0, bottom: 0 }}>
                   <CartesianGrid stroke="#334155" strokeDasharray="5 5" />
                   <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} />
                   <YAxis 
@@ -1426,7 +1426,7 @@ export default function DashboardPage() {
                     content={({ active, payload, label }) => {
                       if (!active || !payload || !payload.length) return null;
                       const sortedPayload = [...payload].sort((a: any, b: any) => {
-                        const order: Record<string, number> = { requests: 0, tokens: 1, cost: 2 };
+                        const order: Record<string, number> = { requests: 0, errors: 1, tokens: 2, cost: 3 };
                         return (order[a.dataKey] ?? 999) - (order[b.dataKey] ?? 999);
                       });
                       return (
@@ -1443,6 +1443,7 @@ export default function DashboardPage() {
                             {sortedPayload.map((entry: any, index: number) => {
                               let color = entry.color;
                               if (entry.name === "请求数") color = darkMode ? "#60a5fa" : "#3b82f6";
+                              if (entry.name === "错误数") color = darkMode ? "#f87171" : "#ef4444";
                               if (entry.name === "Tokens") color = darkMode ? "#4ade80" : "#16a34a";
                               if (entry.name === "费用") color = "#fbbf24";
                               
@@ -1482,10 +1483,11 @@ export default function DashboardPage() {
                     }}
                     itemSorter={(item: any) => ({ requests: 0, tokens: 1, cost: 2 } as Record<string, number>)[item?.dataKey] ?? 999}
                   />
+                  <Bar yAxisId={trendConfig.lineAxisMap.requests} dataKey="errors" name="错误数" fill={darkMode ? "#f87171" : "#ef4444"} fillOpacity={0.35} maxBarSize={18} legendType="none" />
                   <Line hide={!trendVisible.requests} yAxisId={trendConfig.lineAxisMap.requests} type="monotone" dataKey="requests" stroke={darkMode ? "#60a5fa" : "#3b82f6"} strokeWidth={2} name="请求数" dot={{ r: 3, fill: darkMode ? "#60a5fa" : "#3b82f6", stroke: "#fff", strokeWidth: 1, fillOpacity: 0.2 }} activeDot={{ r: 6, stroke: "#fff", strokeWidth: 2 }} />
                   <Line hide={!trendVisible.tokens} yAxisId={trendConfig.lineAxisMap.tokens} type="monotone" dataKey="tokens" stroke={darkMode ? "#4ade80" : "#16a34a"} strokeWidth={2} name="Tokens" dot={{ r: 3, fill: darkMode ? "#4ade80" : "#16a34a", stroke: "#fff", strokeWidth: 1, fillOpacity: 0.2 }} activeDot={{ r: 6, stroke: "#fff", strokeWidth: 2 }} />
                   <Line hide={!trendVisible.cost} yAxisId={trendConfig.lineAxisMap.cost} type="monotone" dataKey="cost" stroke="#fbbf24" strokeWidth={2} name="费用" dot={{ r: 3, fill: "#fbbf24", stroke: "#fff", strokeWidth: 1, fillOpacity: 0.2 }} activeDot={{ r: 6, stroke: "#fff", strokeWidth: 2 }} />
-                </LineChart>
+                </ComposedChart>
               </ResponsiveContainer>
               )}
             </div>
@@ -2155,7 +2157,7 @@ export default function DashboardPage() {
         <div className="mt-4 h-[70vh]">
           {fullscreenChart === "trend" && overviewData && (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={overviewData.byDay} margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
+              <ComposedChart data={overviewData.byDay} margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke="#334155" strokeDasharray="5 5" />
                 <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} />
                 <YAxis 
@@ -2185,7 +2187,7 @@ export default function DashboardPage() {
                   content={({ active, payload, label }) => {
                     if (!active || !payload || !payload.length) return null;
                     const sortedPayload = [...payload].sort((a: any, b: any) => {
-                      const order: Record<string, number> = { requests: 0, tokens: 1, cost: 2 };
+                      const order: Record<string, number> = { requests: 0, errors: 1, tokens: 2, cost: 3 };
                       return (order[a.dataKey] ?? 999) - (order[b.dataKey] ?? 999);
                     });
                     return (
@@ -2202,6 +2204,7 @@ export default function DashboardPage() {
                           {sortedPayload.map((entry: any, index: number) => {
                             let color = entry.color;
                             if (entry.name === "请求数") color = darkMode ? "#60a5fa" : "#3b82f6";
+                            if (entry.name === "错误数") color = darkMode ? "#f87171" : "#ef4444";
                             if (entry.name === "Tokens") color = darkMode ? "#4ade80" : "#16a34a";
                             if (entry.name === "费用") color = "#fbbf24";
                             
@@ -2241,10 +2244,11 @@ export default function DashboardPage() {
                   }}
                   itemSorter={(item: any) => ({ requests: 0, tokens: 1, cost: 2 } as Record<string, number>)[item?.dataKey] ?? 999}
                 />
+                <Bar yAxisId={trendConfig.lineAxisMap.requests} dataKey="errors" name="错误数" fill={darkMode ? "#f87171" : "#ef4444"} fillOpacity={0.35} maxBarSize={22} legendType="none" />
                 <Line hide={!trendVisible.requests} yAxisId={trendConfig.lineAxisMap.requests} type="monotone" dataKey="requests" stroke={darkMode ? "#60a5fa" : "#3b82f6"} strokeWidth={2} name="请求数" dot={{ r: 3, fill: darkMode ? "#60a5fa" : "#3b82f6", stroke: "#fff", strokeWidth: 1, fillOpacity: 0.2 }} activeDot={{ r: 6, stroke: "#fff", strokeWidth: 2 }} />
                 <Line hide={!trendVisible.tokens} yAxisId={trendConfig.lineAxisMap.tokens} type="monotone" dataKey="tokens" stroke={darkMode ? "#4ade80" : "#16a34a"} strokeWidth={2} name="Tokens" dot={{ r: 3, fill: darkMode ? "#4ade80" : "#16a34a", stroke: "#fff", strokeWidth: 1, fillOpacity: 0.2 }} activeDot={{ r: 6, stroke: "#fff", strokeWidth: 2 }} />
                 <Line hide={!trendVisible.cost} yAxisId={trendConfig.lineAxisMap.cost} type="monotone" dataKey="cost" stroke="#fbbf24" strokeWidth={2} name="费用" dot={{ r: 3, fill: "#fbbf24", stroke: "#fff", strokeWidth: 1, fillOpacity: 0.2 }} activeDot={{ r: 6, stroke: "#fff", strokeWidth: 2 }} />
-              </LineChart>
+              </ComposedChart>
             </ResponsiveContainer>
           )}
           {fullscreenChart === "pie" && overviewData && overviewData.models.length > 0 && (
