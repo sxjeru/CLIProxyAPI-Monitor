@@ -20,7 +20,7 @@
     "next": "16.1.6",
     "react": "19.2.4",
     "react-dom": "19.2.3",
-    "react-day-picker": "^8.10.1",
+    "react-day-picker": "^9.13.2",
     "recharts": "^3.7.0",
     "zod": "^4.3.6"
   },
