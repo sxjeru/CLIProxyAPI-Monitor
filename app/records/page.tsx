@@ -13,6 +13,7 @@ type UsageRecord = {
   route: string;
   source: string;
   credentialName: string;
+  provider: string | null;
   model: string;
   totalTokens: number;
   inputTokens: number;
@@ -373,6 +374,21 @@ export default function RecordsPage() {
       : "bg-sky-500/20 text-sky-200 ring-1 ring-sky-500/40";
   }, []);
 
+  const providerTone = useCallback((provider: string | null) => {
+    const val = (provider || "").toLowerCase();
+    if (val.includes("openai")) return "bg-emerald-500/20 text-emerald-200 ring-1 ring-emerald-500/40";
+    if (val.includes("anthropic") || val.includes("claude")) return "bg-orange-500/20 text-orange-200 ring-1 ring-orange-500/40";
+    if (val.includes("google") || val.includes("gemini")) return "bg-blue-500/20 text-blue-200 ring-1 ring-blue-500/40";
+    if (val.includes("azure")) return "bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-500/40";
+    if (val.includes("deepseek")) return "bg-indigo-500/20 text-indigo-200 ring-1 ring-indigo-500/40";
+    if (val.includes("xai") || val.includes("grok")) return "bg-fuchsia-500/20 text-fuchsia-200 ring-1 ring-fuchsia-500/40";
+    if (val.includes("openrouter")) return "bg-violet-500/20 text-violet-200 ring-1 ring-violet-500/40";
+    if (val.includes("qwen") || val.includes("aliyun") || val.includes("dashscope")) {
+      return "bg-yellow-500/20 text-yellow-200 ring-1 ring-yellow-500/40";
+    }
+    return "bg-slate-700/60 text-slate-300 ring-1 ring-slate-600";
+  }, []);
+
   const filterSummary = useMemo(() => {
     const parts: string[] = [];
     if (appliedModel) parts.push(`模型: ${appliedModel}`);
@@ -674,7 +690,7 @@ export default function RecordsPage() {
 
       <section className={`mt-5 rounded-2xl bg-slate-800/40 p-4 shadow-sm ring-1 ring-slate-700 ${loadingEmpty ? "min-h-[100vh]" : ""}`}>
         <div className="overflow-auto">
-          <table className="min-w-[1360px] w-[99%] mx-auto table-fixed border-separate border-spacing-y-2">
+          <table className="min-w-[1460px] w-[99%] mx-auto table-fixed border-separate border-spacing-y-2">
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-xs uppercase tracking-wider text-slate-400">
                 <th className="px-3 py-2 w-40">
@@ -709,6 +725,7 @@ export default function RecordsPage() {
                     onClick={() => handleSort("source")}
                   />
                 </th>
+                <th className="px-3 py-2 w-32">AI 提供商</th>
                 <th className="px-3 py-2 w-28">
                   <SortHeader
                     label="Tokens"
@@ -791,6 +808,11 @@ export default function RecordsPage() {
                     <div className="max-w-[220px] truncate text-slate-300" title={hideRouteValue ? "-" : row.credentialName || "-"}>
                       {hideRouteValue ? "-" : row.credentialName || "-"}
                     </div>
+                  </td>
+                  <td className="px-3 py-3 first:rounded-l-lg last:rounded-r-lg">
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${providerTone(row.provider)}`}>
+                      {row.provider || "-"}
+                    </span>
                   </td>
                   <td className="px-3 py-3 first:rounded-l-lg last:rounded-r-lg">
                     <span className="rounded-full bg-indigo-500/20 px-2.5 py-1 text-xs font-semibold text-indigo-200 ring-1 ring-indigo-500/30">

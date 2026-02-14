@@ -9,6 +9,7 @@ export type UsageRecordRow = {
   route: string;
   source: string;
   credentialName: string;
+  provider: string | null;
   model: string;
   totalTokens: number;
   inputTokens: number;
@@ -203,6 +204,7 @@ export async function getUsageRecords(input: {
       route: usageRecords.route,
       source: usageRecords.source,
       credentialName: CREDENTIAL_NAME_EXPR,
+      provider: authFileMappings.provider,
       model: usageRecords.model,
       totalTokens: usageRecords.totalTokens,
       inputTokens: usageRecords.inputTokens,
