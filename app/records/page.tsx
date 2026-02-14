@@ -70,11 +70,11 @@ type ColumnKey =
 type ColumnSetting = {
   key: ColumnKey;
   visible: boolean;
-  width: number;
+  width: number | null;
 };
 
 const PAGE_SIZE = 60;
-const COLUMN_SETTINGS_STORAGE_KEY = "records-column-settings-v1";
+const COLUMN_SETTINGS_STORAGE_KEY = "records-column-settings-v2";
 const DEFAULT_COLUMN_ORDER: ColumnKey[] = [
   "occurredAt",
   "model",
@@ -106,22 +106,36 @@ const COLUMN_LABELS: Record<ColumnKey, string> = {
 };
 
 const DEFAULT_COLUMN_WIDTHS: Record<ColumnKey, number> = {
-  occurredAt: 160,
-  model: 240,
-  route: 210,
-  credentialName: 225,
-  provider: 150,
-  totalTokens: 130,
-  inputTokens: 110,
-  outputTokens: 110,
-  reasoningTokens: 110,
-  cachedTokens: 110,
-  cost: 130,
-  isError: 100
+  occurredAt: 140,
+  model: 210,
+  route: 180,
+  credentialName: 180,
+  provider: 130,
+  totalTokens: 115,
+  inputTokens: 95,
+  outputTokens: 95,
+  reasoningTokens: 95,
+  cachedTokens: 95,
+  cost: 110,
+  isError: 90
 };
+
+const FIXED_WIDTH_COLUMNS = new Set<ColumnKey>(["model", "route", "credentialName"]);
 
 const COLUMN_MIN_WIDTH = 80;
 const COLUMN_MAX_WIDTH = 420;
+
+const NON_FIXED_CONTENT_MIN_WIDTHS: Record<Exclude<ColumnKey, "model" | "route" | "credentialName">, number> = {
+  occurredAt: 150,
+  provider: 120,
+  totalTokens: 120,
+  inputTokens: 96,
+  outputTokens: 96,
+  reasoningTokens: 96,
+  cachedTokens: 96,
+  cost: 105,
+  isError: 88
+};
 
 const SORT_FIELD_BY_COLUMN: Partial<Record<ColumnKey, SortField>> = {
   occurredAt: "occurredAt",
@@ -139,7 +153,11 @@ const SORT_FIELD_BY_COLUMN: Partial<Record<ColumnKey, SortField>> = {
 
 function normalizeColumnSettings(raw: unknown): ColumnSetting[] {
   if (!Array.isArray(raw)) {
-    return DEFAULT_COLUMN_ORDER.map((key) => ({ key, visible: true, width: DEFAULT_COLUMN_WIDTHS[key] }));
+    return DEFAULT_COLUMN_ORDER.map((key) => ({
+      key,
+      visible: true,
+      width: FIXED_WIDTH_COLUMNS.has(key) ? DEFAULT_COLUMN_WIDTHS[key] : null
+    }));
   }
 
   const seen = new Set<ColumnKey>();
@@ -155,7 +173,9 @@ function normalizeColumnSettings(raw: unknown): ColumnSetting[] {
     const parsedWidth = Number(item?.width);
     const width = Number.isFinite(parsedWidth)
       ? Math.min(COLUMN_MAX_WIDTH, Math.max(COLUMN_MIN_WIDTH, Math.round(parsedWidth)))
-      : DEFAULT_COLUMN_WIDTHS[key as ColumnKey];
+      : FIXED_WIDTH_COLUMNS.has(key as ColumnKey)
+        ? DEFAULT_COLUMN_WIDTHS[key as ColumnKey]
+        : null;
     ordered.push({
       key: key as ColumnKey,
       visible: item?.visible !== false,
@@ -165,7 +185,7 @@ function normalizeColumnSettings(raw: unknown): ColumnSetting[] {
 
   for (const key of DEFAULT_COLUMN_ORDER) {
     if (!seen.has(key)) {
-      ordered.push({ key, visible: true, width: DEFAULT_COLUMN_WIDTHS[key] });
+      ordered.push({ key, visible: true, width: FIXED_WIDTH_COLUMNS.has(key) ? DEFAULT_COLUMN_WIDTHS[key] : null });
     }
   }
 
@@ -290,11 +310,17 @@ export default function RecordsPage() {
   const [sortField, setSortField] = useState<SortField>("occurredAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [columnSettings, setColumnSettings] = useState<ColumnSetting[]>(
-    DEFAULT_COLUMN_ORDER.map((key) => ({ key, visible: true, width: DEFAULT_COLUMN_WIDTHS[key] }))
+    DEFAULT_COLUMN_ORDER.map((key) => ({
+      key,
+      visible: true,
+      width: FIXED_WIDTH_COLUMNS.has(key) ? DEFAULT_COLUMN_WIDTHS[key] : null
+    }))
   );
   const [columnSettingsReady, setColumnSettingsReady] = useState(false);
   const [columnPanelOpen, setColumnPanelOpen] = useState(false);
+  const [tableContainerWidth, setTableContainerWidth] = useState(0);
   const columnPanelRef = useRef<HTMLDivElement | null>(null);
+  const tableWrapperRef = useRef<HTMLDivElement | null>(null);
   const resizingColumnRef = useRef<{ key: ColumnKey; startX: number; startWidth: number } | null>(null);
   const draggingColumnRef = useRef<ColumnKey | null>(null);
   const [dragIndicator, setDragIndicator] = useState<{ key: ColumnKey; position: "before" | "after" } | null>(null);
@@ -315,7 +341,9 @@ export default function RecordsPage() {
     setColumnSettings((prev) => {
       const next = prev.map((item) => (item.key === key ? { ...item, visible: !item.visible } : item));
       if (next.filter((item) => item.visible).length === 0) return prev;
-      return next;
+
+      // 每次列显隐变更后，非关键列重置为 auto，触发一次自适应宽度。
+      return next.map((item) => (FIXED_WIDTH_COLUMNS.has(item.key) ? item : { ...item, width: null }));
     });
   }, []);
 
@@ -370,10 +398,71 @@ export default function RecordsPage() {
     setColumnSettings((prev) => prev.map((item) => (item.key === key ? { ...item, width: nextWidth } : item)));
   }, []);
 
-  const getColumnWidth = useCallback(
-    (key: ColumnKey) => columnSettingMap.get(key)?.width ?? DEFAULT_COLUMN_WIDTHS[key],
+  const getBaseColumnWidth = useCallback(
+    (key: ColumnKey) => {
+      const width = columnSettingMap.get(key)?.width;
+      if (width !== undefined && width !== null) return width;
+      return DEFAULT_COLUMN_WIDTHS[key];
+    },
     [columnSettingMap]
   );
+
+  const adaptiveWidthMap = useMemo(() => {
+    const result = new Map<ColumnKey, number>();
+    if (visibleColumns.length === 0) return result;
+
+    const fixedColumns = visibleColumns.filter((key) => FIXED_WIDTH_COLUMNS.has(key));
+    const nonFixedColumns = visibleColumns.filter((key) => !FIXED_WIDTH_COLUMNS.has(key));
+
+    let usedWidth = 0;
+
+    for (const key of fixedColumns) {
+      const width = getBaseColumnWidth(key);
+      result.set(key, width);
+      usedWidth += width;
+    }
+
+    const manualNonFixed: ColumnKey[] = [];
+    const autoNonFixed: Array<Exclude<ColumnKey, "model" | "route" | "credentialName">> = [];
+
+    for (const key of nonFixedColumns) {
+      const setting = columnSettingMap.get(key);
+      if (setting?.width !== null && setting?.width !== undefined) {
+        manualNonFixed.push(key);
+      } else {
+        autoNonFixed.push(key as Exclude<ColumnKey, "model" | "route" | "credentialName">);
+      }
+    }
+
+    for (const key of manualNonFixed) {
+      const minRequired = NON_FIXED_CONTENT_MIN_WIDTHS[key as Exclude<ColumnKey, "model" | "route" | "credentialName">];
+      const width = Math.max(getBaseColumnWidth(key), minRequired);
+      result.set(key, width);
+      usedWidth += width;
+    }
+
+    if (autoNonFixed.length === 0) {
+      return result;
+    }
+
+    const available = tableContainerWidth > 0 ? tableContainerWidth - 8 : 0;
+    const minTotal = autoNonFixed.reduce((sum, key) => sum + NON_FIXED_CONTENT_MIN_WIDTHS[key], 0);
+    const remaining = Math.max(0, available - usedWidth);
+
+    if (remaining <= minTotal || available <= 0) {
+      for (const key of autoNonFixed) {
+        result.set(key, NON_FIXED_CONTENT_MIN_WIDTHS[key]);
+      }
+      return result;
+    }
+
+    const extraPerColumn = Math.floor((remaining - minTotal) / autoNonFixed.length);
+    for (const key of autoNonFixed) {
+      result.set(key, NON_FIXED_CONTENT_MIN_WIDTHS[key] + extraPerColumn);
+    }
+
+    return result;
+  }, [visibleColumns, getBaseColumnWidth, columnSettingMap, tableContainerWidth]);
 
   const beginResizeColumn = useCallback(
     (key: ColumnKey, event: ReactMouseEvent<HTMLDivElement>) => {
@@ -381,11 +470,12 @@ export default function RecordsPage() {
       event.stopPropagation();
       const current = columnSettingMap.get(key);
       if (!current) return;
+      const currentRenderedWidth = Math.round(event.currentTarget.parentElement?.getBoundingClientRect().width ?? DEFAULT_COLUMN_WIDTHS[key]);
 
       resizingColumnRef.current = {
         key,
         startX: event.clientX,
-        startWidth: current.width
+        startWidth: currentRenderedWidth
       };
 
       const onMouseMove = (moveEvent: MouseEvent) => {
@@ -793,7 +883,13 @@ export default function RecordsPage() {
         setColumnSettings(normalizeColumnSettings(parsed));
       }
     } catch {
-      setColumnSettings(DEFAULT_COLUMN_ORDER.map((key) => ({ key, visible: true, width: DEFAULT_COLUMN_WIDTHS[key] })));
+      setColumnSettings(
+        DEFAULT_COLUMN_ORDER.map((key) => ({
+          key,
+          visible: true,
+          width: FIXED_WIDTH_COLUMNS.has(key) ? DEFAULT_COLUMN_WIDTHS[key] : null
+        }))
+      );
     } finally {
       setColumnSettingsReady(true);
     }
@@ -815,6 +911,23 @@ export default function RecordsPage() {
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [columnPanelOpen]);
+
+  useEffect(() => {
+    const element = tableWrapperRef.current;
+    if (!element) return;
+
+    const updateWidth = () => {
+      setTableContainerWidth(element.clientWidth);
+    };
+
+    updateWidth();
+
+    if (typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(() => updateWidth());
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <main className="min-h-screen bg-slate-900 px-6 py-8 text-slate-100">
@@ -1038,17 +1151,13 @@ export default function RecordsPage() {
                       onDragOver={(event) => onColumnDragOver(column.key, event)}
                       onDrop={(event) => onColumnDrop(column.key, event)}
                       onDragEnd={onColumnDragEnd}
-                      className={`flex items-center justify-between rounded-lg border px-2 py-1.5 ${
-                        dragIndicator?.key === column.key
-                          ? "border-indigo-400/70 bg-indigo-500/10"
-                          : "border-slate-800 bg-slate-950/60"
-                      } relative`}
+                      className="relative flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/60 px-2 py-1.5"
                     >
                       {dragIndicator?.key === column.key && dragIndicator.position === "before" ? (
-                        <span className="pointer-events-none absolute left-2 right-2 -top-1.5 h-px bg-indigo-400" />
+                        <span className="pointer-events-none absolute left-2 right-2 top-0 h-px -translate-y-1/2 bg-indigo-300/90 shadow-[0_0_6px_rgba(129,140,248,0.45)]" />
                       ) : null}
                       {dragIndicator?.key === column.key && dragIndicator.position === "after" ? (
-                        <span className="pointer-events-none absolute left-2 right-2 -bottom-1.5 h-px bg-indigo-400" />
+                        <span className="pointer-events-none absolute left-2 right-2 bottom-0 h-px translate-y-1/2 bg-indigo-300/90 shadow-[0_0_6px_rgba(129,140,248,0.45)]" />
                       ) : null}
                       <label className="inline-flex items-center gap-2 text-sm text-slate-200">
                         <span className="cursor-grab text-slate-500 active:cursor-grabbing" title="按住拖拽排序">
@@ -1062,7 +1171,7 @@ export default function RecordsPage() {
                           className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-indigo-500"
                         />
                         <span>{COLUMN_LABELS[column.key]}</span>
-                        <span className="text-xs text-slate-500">{column.width}px</span>
+                        <span className="text-xs text-slate-500">{column.width ? `${column.width}px` : "auto"}</span>
                       </label>
                     </div>
                   ))}
@@ -1076,27 +1185,28 @@ export default function RecordsPage() {
 
       <section className={`mt-5 rounded-2xl bg-slate-800/40 p-4 shadow-sm ring-1 ring-slate-700 ${loadingEmpty ? "min-h-[100vh]" : ""}`}>
         {!loadingEmpty ? (
-          <div className="overflow-auto">
-            <table className="min-w-[1460px] w-[99%] mx-auto table-fixed border-separate border-spacing-y-2">
+          <div ref={tableWrapperRef} className="overflow-auto">
+            <table className="min-w-full w-full table-fixed border-separate border-spacing-y-2">
               <thead className="sticky top-0 z-10">
                 <tr className="text-left text-[13px] uppercase tracking-wide text-slate-400">
                   {visibleColumns.map((columnKey) => {
-                    const width = getColumnWidth(columnKey);
+                    const width = adaptiveWidthMap.get(columnKey) ?? DEFAULT_COLUMN_WIDTHS[columnKey];
                     return (
                       <th
                         key={columnKey}
-                        className="relative px-3 py-2"
-                        style={{ width: `${width}px`, minWidth: `${width}px` }}
+                        className="group/col relative px-3 py-2"
+                        style={width ? { width: `${width}px`, minWidth: `${width}px` } : undefined}
                       >
                         {renderHeaderByColumn(columnKey)}
                         <div
                           role="separator"
                           aria-orientation="vertical"
                           onMouseDown={(event) => beginResizeColumn(columnKey, event)}
-                          className="group absolute right-0 top-0 h-full w-2 cursor-col-resize select-none"
+                          className="group absolute right-0 top-0 h-full w-3 cursor-col-resize select-none opacity-0 pointer-events-none transition-opacity duration-250 group-hover/col:opacity-100 group-hover/col:pointer-events-auto"
                           title="拖拽调整列宽"
                         >
-                          <span className="absolute right-[3px] top-1 bottom-1 w-px rounded bg-slate-500/70 transition-colors group-hover:bg-indigo-400/80" />
+                          <span className="absolute right-[4px] top-2 bottom-2 w-px rounded bg-gradient-to-b from-transparent via-slate-400/35 to-transparent opacity-70 transition-all duration-150 group-hover:via-indigo-300/60 group-hover:opacity-100" />
+                          <span className="pointer-events-none absolute right-[3px] top-1/2 h-3 w-[3px] -translate-y-1/2 rounded-full bg-slate-400/35 transition-colors duration-150 group-hover:bg-indigo-300/65" />
                         </div>
                       </th>
                     );
@@ -1107,15 +1217,25 @@ export default function RecordsPage() {
                 {records.map((row) => (
                   <tr
                     key={row.id}
-                    className="rounded-lg bg-slate-900/70 text-slate-100 shadow-sm ring-1 ring-slate-800 transition hover:ring-1.5 hover:ring-indigo-400/40 hover:shadow-[0_0_24px_rgba(99,102,241,0.18)] h-13"
+                    className="group h-13 rounded-lg bg-slate-900/70 text-slate-100 shadow-sm ring-1 ring-slate-800 transition hover:shadow-[0_0_24px_rgba(99,102,241,0.18)]"
                   >
-                    {visibleColumns.map((columnKey) => {
-                      const width = getColumnWidth(columnKey);
+                    {visibleColumns.map((columnKey, index) => {
+                      const width = adaptiveWidthMap.get(columnKey) ?? DEFAULT_COLUMN_WIDTHS[columnKey];
+                      const isFirst = index === 0;
+                      const isLast = index === visibleColumns.length - 1;
                       return (
                         <td
                           key={`${row.id}-${columnKey}`}
-                          className="px-3 py-3 whitespace-nowrap"
-                          style={{ width: `${width}px`, minWidth: `${width}px` }}
+                          className={`whitespace-nowrap border-y border-transparent px-3 py-3 transition group-hover:border-indigo-400/40 ${
+                            isFirst
+                              ? "rounded-l-lg border-l border-l-transparent group-hover:border-l-indigo-400/40 group-hover:shadow-[-10px_0_16px_-10px_rgba(99,102,241,0.48)]"
+                              : ""
+                          } ${
+                            isLast
+                              ? "rounded-r-lg border-r border-r-transparent group-hover:border-r-indigo-400/40 group-hover:shadow-[10px_0_16px_-10px_rgba(99,102,241,0.48)]"
+                              : ""
+                          }`}
+                          style={width ? { width: `${width}px`, minWidth: `${width}px` } : undefined}
                         >
                           {renderCellByColumn(columnKey, row)}
                         </td>

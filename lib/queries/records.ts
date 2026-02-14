@@ -161,7 +161,7 @@ export async function getUsageRecords(input: {
   }
 
   if (input.source) {
-    whereParts.push(eq(usageRecords.source, input.source));
+    whereParts.push(sql`${CREDENTIAL_NAME_EXPR} = ${input.source}`);
   }
 
   const sortExpr = (() => {
@@ -281,17 +281,18 @@ export async function getUsageRecords(input: {
         .orderBy(usageRecords.route)
         .limit(200),
       db
-        .select({ source: usageRecords.source })
+        .select({ source: CREDENTIAL_NAME_EXPR })
         .from(usageRecords)
+        .leftJoin(authFileMappings, eq(usageRecords.authIndex, authFileMappings.authId))
         .where(where)
-        .groupBy(usageRecords.source)
-        .orderBy(usageRecords.source)
+        .groupBy(CREDENTIAL_NAME_EXPR)
+        .orderBy(CREDENTIAL_NAME_EXPR)
         .limit(200),
     ]);
     filters = {
       models: modelRows.map((row) => row.model),
       routes: routeRows.map((row) => row.route),
-      sources: sourceRows.map((row) => row.source).filter(Boolean)
+      sources: sourceRows.map((row) => row.source).filter((name): name is string => Boolean(name) && name !== "-")
     };
   }
 
