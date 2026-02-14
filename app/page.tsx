@@ -23,7 +23,7 @@ const PIE_COLORS = [
 ];
 
 type OverviewMeta = { page: number; pageSize: number; totalModels: number; totalPages: number };
-type OverviewAPIResponse = { overview: UsageOverview | null; empty: boolean; days: number; meta?: OverviewMeta; filters?: { models: string[]; routes: string[] } };
+type OverviewAPIResponse = { overview: UsageOverview | null; empty: boolean; days: number; timezone?: string; meta?: OverviewMeta; filters?: { models: string[]; routes: string[] } };
 
 type PriceForm = {
   model: string;
@@ -33,7 +33,6 @@ type PriceForm = {
 };
 
 const hourFormatter = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Asia/Shanghai",
   month: "2-digit",
   day: "2-digit",
   hour: "2-digit",
@@ -66,15 +65,21 @@ const numericTooltipFormatter: TooltipProps<number, string>["formatter"] = (valu
   return [formatNumberWithCommas(numericValue), name];
 };
 
-function formatHourKeyFromTs(ts: number) {
-  const parts = hourFormatter.formatToParts(new Date(ts));
+function formatHourKeyFromTs(ts: number, formatter: Intl.DateTimeFormat) {
+  const parts = formatter.formatToParts(new Date(ts));
   const month = parts.find((p) => p.type === "month")?.value ?? "00";
   const day = parts.find((p) => p.type === "day")?.value ?? "00";
   const hour = parts.find((p) => p.type === "hour")?.value ?? "00";
   return `${month}-${day} ${hour}`;
 }
 
-function buildHourlySeries(series: UsageSeriesPoint[], rangeHours?: number) {
+function buildHourlySeries(series: UsageSeriesPoint[], rangeHours?: number, timezone?: string) {
+  // Use the server's bucketing timezone for gap-fill labels so they match the
+  // labels returned for real data points. Falls back to the module-level formatter
+  // (browser timezone) when no timezone is provided.
+  const gapFormatter = timezone
+    ? new Intl.DateTimeFormat("en-CA", { timeZone: timezone, month: "2-digit", day: "2-digit", hour: "2-digit", hour12: false })
+    : hourFormatter;
   if (!series.length) return [] as UsageSeriesPoint[];
 
   const withTs = series
@@ -98,7 +103,7 @@ function buildHourlySeries(series: UsageSeriesPoint[], rangeHours?: number) {
       filled.push(rest);
     } else {
       filled.push({
-        label: formatHourKeyFromTs(ts),
+        label: formatHourKeyFromTs(ts, gapFormatter),
         timestamp: new Date(ts).toISOString(),
         requests: 0,
         tokens: 0,
@@ -167,6 +172,7 @@ export default function DashboardPage() {
     }
   }, []);
   const [overview, setOverview] = useState<UsageOverview | null>(null);
+  const [bucketTimezone, setBucketTimezone] = useState<string | undefined>(undefined);
   const [overviewError, setOverviewError] = useState<string | null>(null);
   const [overviewEmpty, setOverviewEmpty] = useState(false);
   const [loadingOverview, setLoadingOverview] = useState(true);
@@ -730,6 +736,7 @@ export default function DashboardPage() {
         const data: OverviewAPIResponse = await res.json();
         if (!active) return;
         setOverview(data.overview ?? null);
+        setBucketTimezone(data.timezone);
         setOverviewEmpty(Boolean(data.empty));
         setOverviewError(null);
         setPage(data.meta?.page ?? 1);
@@ -760,8 +767,8 @@ export default function DashboardPage() {
     if (!overviewData?.byHour) return [] as UsageSeriesPoint[];
     if (hourRange === "all") return overviewData.byHour;
     const hours = hourRange === "24h" ? 24 : 72;
-    return buildHourlySeries(overviewData.byHour, hours);
-  }, [hourRange, overviewData?.byHour]);
+    return buildHourlySeries(overviewData.byHour, hours, bucketTimezone);
+  }, [hourRange, overviewData?.byHour, bucketTimezone]);
 
   const hourlyLineStyle = useMemo(
     () => buildHourlyLineStyle(hourlySeries.length, 3),

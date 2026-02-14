@@ -10,6 +10,20 @@ const baseUrl = normalizeBaseUrl(process.env.CLIPROXY_API_BASE_URL);
 const password = process.env.PASSWORD || process.env.CLIPROXY_SECRET_KEY || "";
 const cronSecret = process.env.CRON_SECRET || "";
 
+function normalizeTimezone(raw: string | undefined): string {
+  const value = (raw || "").trim();
+  if (!value) return "Asia/Shanghai";
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: value });
+    return value;
+  } catch {
+    console.warn(`TIMEZONE env var "${value}" is not a valid IANA timezone. Falling back to Asia/Shanghai.`);
+    return "Asia/Shanghai";
+  }
+}
+
+const timezone = normalizeTimezone(process.env.TIMEZONE);
+
 export const config = {
   cliproxy: {
     baseUrl,
@@ -17,7 +31,8 @@ export const config = {
   },
   postgresUrl: process.env.DATABASE_URL || "",
   password,
-  cronSecret
+  cronSecret,
+  timezone
 };
 
 export function assertEnv() {

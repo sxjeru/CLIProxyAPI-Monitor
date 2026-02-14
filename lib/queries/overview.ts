@@ -84,8 +84,8 @@ function normalizePageSize(value?: number | null) {
 
 export async function getOverview(
   daysInput?: number,
-  opts?: { model?: string | null; route?: string | null; page?: number | null; pageSize?: number | null; start?: string | Date | null; end?: string | Date | null }
-): Promise<{ overview: UsageOverview; empty: boolean; days: number; meta: OverviewMeta; filters: { models: string[]; routes: string[] } }> {
+  opts?: { model?: string | null; route?: string | null; page?: number | null; pageSize?: number | null; start?: string | Date | null; end?: string | Date | null; timezone?: string | null }
+): Promise<{ overview: UsageOverview; empty: boolean; days: number; meta: OverviewMeta; filters: { models: string[]; routes: string[] }; timezone: string }> {
   const startDate = parseDateInput(opts?.start);
   const endDate = parseDateInput(opts?.end);
   const hasCustomRange = startDate && endDate && endDate >= startDate;
@@ -106,8 +106,14 @@ export async function getOverview(
   if (opts?.route) filterWhereParts.push(eq(usageRecords.route, opts.route));
   const filterWhere = filterWhereParts.length ? and(...filterWhereParts) : undefined;
 
-  const dayExpr = sql`date_trunc('day', ${usageRecords.occurredAt} at time zone 'Asia/Shanghai')`;
-  const hourExpr = sql`date_trunc('hour', ${usageRecords.occurredAt} at time zone 'Asia/Shanghai')`;
+  const tz = opts?.timezone || "Asia/Shanghai";
+  // Use sql.raw() so the timezone is embedded as a SQL literal rather than a query
+  // parameter. PostgreSQL requires the GROUP BY expression to be textually identical
+  // to the SELECT expression; different parameter indices ($1 vs $3) would cause a
+  // "must appear in GROUP BY" error even when the values are equal.
+  const tzLiteral = sql.raw(`'${tz}'`);
+  const dayExpr = sql`date_trunc('day', ${usageRecords.occurredAt} at time zone ${tzLiteral})`;
+  const hourExpr = sql`date_trunc('hour', ${usageRecords.occurredAt} at time zone ${tzLiteral})`;
 
   const totalsPromise: Promise<TotalsRow[]> = db
     .select({
@@ -177,7 +183,7 @@ export async function getOverview(
   const byHourPromise: Promise<HourAggRow[]> = db
     .select({
       label: sql<string>`to_char(${hourExpr}, 'MM-DD HH24')`,
-      hourStart: sql<Date>`(${hourExpr}) at time zone 'Asia/Shanghai'`,
+      hourStart: sql<Date>`(${hourExpr}) at time zone ${tzLiteral}`,
       requests: sql<number>`count(*)`,
       tokens: sql<number>`sum(${usageRecords.totalTokens})`,
       inputTokens: sql<number>`sum(${usageRecords.inputTokens})`,
@@ -332,6 +338,7 @@ export async function getOverview(
     empty: totalRequests === 0,
     days,
     meta: { page, pageSize, totalModels, totalPages },
-    filters
+    filters,
+    timezone: tz
   };
 }
