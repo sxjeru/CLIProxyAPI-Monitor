@@ -13,7 +13,7 @@ const tokensSchema = z.object({
 const detailSchema = z.object({
   timestamp: z.string().optional(),
   source: z.string().optional(),
-  // auth_index 可能是字符串或数字，统一保留原值并在后续转为字符串
+  // 保留 auth_index 原值（字符串或数字），避免历史/异构格式被丢弃
   auth_index: z.union([z.string(), z.number()]).optional(),
   tokens: tokensSchema.optional(),
   failed: z.boolean().optional(),
