@@ -1,7 +1,16 @@
 "use client";
 
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, RefreshCw, SlidersHorizontal, X, CalendarRange } from "lucide-react";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent as ReactDragEvent,
+  type MouseEvent as ReactMouseEvent
+} from "react";
+import { ArrowDown, ArrowUp, RefreshCw, SlidersHorizontal, X, CalendarRange, Columns3, GripVertical } from "lucide-react";
 import { formatNumberWithCommas } from "@/lib/utils";
 import { DayPicker, type DateRange } from "react-day-picker";
 import "react-day-picker/dist/style.css";
@@ -11,6 +20,9 @@ type UsageRecord = {
   id: number;
   occurredAt: string;
   route: string;
+  source: string;
+  credentialName: string;
+  provider: string | null;
   model: string;
   totalTokens: number;
   inputTokens: number;
@@ -24,13 +36,14 @@ type UsageRecord = {
 type RecordsResponse = {
   items: UsageRecord[];
   nextCursor: string | null;
-  filters?: { models: string[]; routes: string[] };
+  filters?: { models: string[]; routes: string[]; sources: string[] };
 };
 
 type SortField =
   | "occurredAt"
   | "model"
   | "route"
+  | "source"
   | "totalTokens"
   | "inputTokens"
   | "outputTokens"
@@ -40,7 +53,145 @@ type SortField =
   | "isError";
 type SortOrder = "asc" | "desc";
 
+type ColumnKey =
+  | "occurredAt"
+  | "model"
+  | "route"
+  | "credentialName"
+  | "provider"
+  | "totalTokens"
+  | "inputTokens"
+  | "outputTokens"
+  | "reasoningTokens"
+  | "cachedTokens"
+  | "cost"
+  | "isError";
+
+type ColumnSetting = {
+  key: ColumnKey;
+  visible: boolean;
+  width: number | null;
+};
+
 const PAGE_SIZE = 60;
+const COLUMN_SETTINGS_STORAGE_KEY = "records-column-settings-v2";
+const DEFAULT_COLUMN_ORDER: ColumnKey[] = [
+  "occurredAt",
+  "model",
+  "route",
+  "credentialName",
+  "provider",
+  "totalTokens",
+  "inputTokens",
+  "outputTokens",
+  "reasoningTokens",
+  "cachedTokens",
+  "cost",
+  "isError"
+];
+
+const COLUMN_LABELS: Record<ColumnKey, string> = {
+  occurredAt: "时间",
+  model: "模型",
+  route: "密钥",
+  credentialName: "凭证",
+  provider: "提供商",
+  totalTokens: "Tokens",
+  inputTokens: "输入",
+  outputTokens: "输出",
+  reasoningTokens: "思考",
+  cachedTokens: "缓存",
+  cost: "费用",
+  isError: "状态"
+};
+
+const DEFAULT_COLUMN_WIDTHS: Record<ColumnKey, number> = {
+  occurredAt: 140,
+  model: 210,
+  route: 180,
+  credentialName: 180,
+  provider: 130,
+  totalTokens: 115,
+  inputTokens: 95,
+  outputTokens: 95,
+  reasoningTokens: 95,
+  cachedTokens: 95,
+  cost: 110,
+  isError: 90
+};
+
+const FIXED_WIDTH_COLUMNS = new Set<ColumnKey>(["model", "route", "credentialName"]);
+
+const COLUMN_MIN_WIDTH = 80;
+const COLUMN_MAX_WIDTH = 420;
+
+const NON_FIXED_CONTENT_MIN_WIDTHS: Record<Exclude<ColumnKey, "model" | "route" | "credentialName">, number> = {
+  occurredAt: 150,
+  provider: 120,
+  totalTokens: 120,
+  inputTokens: 96,
+  outputTokens: 96,
+  reasoningTokens: 96,
+  cachedTokens: 96,
+  cost: 105,
+  isError: 88
+};
+
+const SORT_FIELD_BY_COLUMN: Partial<Record<ColumnKey, SortField>> = {
+  occurredAt: "occurredAt",
+  model: "model",
+  route: "route",
+  credentialName: "source",
+  totalTokens: "totalTokens",
+  inputTokens: "inputTokens",
+  outputTokens: "outputTokens",
+  reasoningTokens: "reasoningTokens",
+  cachedTokens: "cachedTokens",
+  cost: "cost",
+  isError: "isError"
+};
+
+function normalizeColumnSettings(raw: unknown): ColumnSetting[] {
+  if (!Array.isArray(raw)) {
+    return DEFAULT_COLUMN_ORDER.map((key) => ({
+      key,
+      visible: true,
+      width: FIXED_WIDTH_COLUMNS.has(key) ? DEFAULT_COLUMN_WIDTHS[key] : null
+    }));
+  }
+
+  const seen = new Set<ColumnKey>();
+  const input = raw as Array<{ key?: unknown; visible?: unknown; width?: unknown }>;
+  const ordered: ColumnSetting[] = [];
+
+  for (const item of input) {
+    const key = item?.key;
+    if (typeof key !== "string") continue;
+    if (!DEFAULT_COLUMN_ORDER.includes(key as ColumnKey)) continue;
+    if (seen.has(key as ColumnKey)) continue;
+    seen.add(key as ColumnKey);
+    const parsedWidth = Number(item?.width);
+    const width = Number.isFinite(parsedWidth)
+      ? Math.min(COLUMN_MAX_WIDTH, Math.max(COLUMN_MIN_WIDTH, Math.round(parsedWidth)))
+      : FIXED_WIDTH_COLUMNS.has(key as ColumnKey)
+        ? DEFAULT_COLUMN_WIDTHS[key as ColumnKey]
+        : null;
+    ordered.push({
+      key: key as ColumnKey,
+      visible: item?.visible !== false,
+      width
+    });
+  }
+
+  for (const key of DEFAULT_COLUMN_ORDER) {
+    if (!seen.has(key)) {
+      ordered.push({ key, visible: true, width: FIXED_WIDTH_COLUMNS.has(key) ? DEFAULT_COLUMN_WIDTHS[key] : null });
+    }
+  }
+
+  return ordered;
+}
+
 const TOKEN_COLORS = {
   input: "#fb7185",
   output: "#4ade80",
@@ -137,8 +288,10 @@ export default function RecordsPage() {
 
   const [models, setModels] = useState<string[]>([]);
   const [routes, setRoutes] = useState<string[]>([]);
+  const [sources, setSources] = useState<string[]>([]);
   const [modelInput, setModelInput] = useState("");
   const [routeInput, setRouteInput] = useState("");
+  const [sourceInput, setSourceInput] = useState("");
   const [startInput, setStartInput] = useState("");
   const [endInput, setEndInput] = useState("");
   const [rangePickerOpen, setRangePickerOpen] = useState(false);
@@ -150,18 +303,203 @@ export default function RecordsPage() {
 
   const [appliedModel, setAppliedModel] = useState<string>("");
   const [appliedRoute, setAppliedRoute] = useState<string>("");
+  const [appliedSource, setAppliedSource] = useState<string>("");
   const [appliedStart, setAppliedStart] = useState<string>("");
   const [appliedEnd, setAppliedEnd] = useState<string>("");
 
   const [sortField, setSortField] = useState<SortField>("occurredAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
-  const [hideRouteValue, setHideRouteValue] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("records-hide-route") === "1";
-  });
+  const [columnSettings, setColumnSettings] = useState<ColumnSetting[]>(
+    DEFAULT_COLUMN_ORDER.map((key) => ({
+      key,
+      visible: true,
+      width: FIXED_WIDTH_COLUMNS.has(key) ? DEFAULT_COLUMN_WIDTHS[key] : null
+    }))
+  );
+  const [columnSettingsReady, setColumnSettingsReady] = useState(false);
+  const [columnPanelOpen, setColumnPanelOpen] = useState(false);
+  const [tableContainerWidth, setTableContainerWidth] = useState(0);
+  const columnPanelRef = useRef<HTMLDivElement | null>(null);
+  const tableWrapperRef = useRef<HTMLDivElement | null>(null);
+  const resizingColumnRef = useRef<{ key: ColumnKey; startX: number; startWidth: number } | null>(null);
+  const draggingColumnRef = useRef<ColumnKey | null>(null);
+  const [dragIndicator, setDragIndicator] = useState<{ key: ColumnKey; position: "before" | "after" } | null>(null);
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const loadingRef = useRef(false);
+  const columnSettingMap = useMemo(
+    () => new Map<ColumnKey, ColumnSetting>(columnSettings.map((item) => [item.key, item])),
+    [columnSettings]
+  );
+  const visibleColumns = useMemo(
+    () => columnSettings.filter((item) => item.visible).map((item) => item.key),
+    [columnSettings]
+  );
+  const visibleColumnCount = visibleColumns.length;
+
+  const toggleColumnVisibility = useCallback((key: ColumnKey) => {
+    setColumnSettings((prev) => {
+      const next = prev.map((item) => (item.key === key ? { ...item, visible: !item.visible } : item));
+      if (next.filter((item) => item.visible).length === 0) return prev;
+
+      // 每次列显隐变更后，非关键列重置为 auto，触发一次自适应宽度。
+      return next.map((item) => (FIXED_WIDTH_COLUMNS.has(item.key) ? item : { ...item, width: null }));
+    });
+  }, []);
+
+  const reorderColumns = useCallback((fromKey: ColumnKey, toKey: ColumnKey, position: "before" | "after") => {
+    setColumnSettings((prev) => {
+      const fromIdx = prev.findIndex((item) => item.key === fromKey);
+      if (fromIdx < 0) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      const targetIdx = next.findIndex((item) => item.key === toKey);
+      if (targetIdx < 0) return prev;
+      const insertIdx = position === "before" ? targetIdx : targetIdx + 1;
+      next.splice(insertIdx, 0, moved);
+      return next;
+    });
+  }, []);
+
+  const onColumnDragStart = useCallback((key: ColumnKey) => {
+    draggingColumnRef.current = key;
+    setDragIndicator(null);
+  }, []);
+
+  const onColumnDragOver = useCallback((targetKey: ColumnKey, event: ReactDragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const position: "before" | "after" = event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+    setDragIndicator((prev) => {
+      if (prev?.key === targetKey && prev.position === position) return prev;
+      return { key: targetKey, position };
+    });
+  }, []);
+
+  const onColumnDrop = useCallback((targetKey: ColumnKey, event: ReactDragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const sourceKey = draggingColumnRef.current;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const position: "before" | "after" = event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+    if (sourceKey && sourceKey !== targetKey) {
+      reorderColumns(sourceKey, targetKey, position);
+    }
+    draggingColumnRef.current = null;
+    setDragIndicator(null);
+  }, [reorderColumns]);
+
+  const onColumnDragEnd = useCallback(() => {
+    draggingColumnRef.current = null;
+    setDragIndicator(null);
+  }, []);
+
+  const setColumnWidth = useCallback((key: ColumnKey, width: number) => {
+    const nextWidth = Math.min(COLUMN_MAX_WIDTH, Math.max(COLUMN_MIN_WIDTH, Math.round(width)));
+    setColumnSettings((prev) => prev.map((item) => (item.key === key ? { ...item, width: nextWidth } : item)));
+  }, []);
+
+  const getBaseColumnWidth = useCallback(
+    (key: ColumnKey) => {
+      const width = columnSettingMap.get(key)?.width;
+      if (width !== undefined && width !== null) return width;
+      return DEFAULT_COLUMN_WIDTHS[key];
+    },
+    [columnSettingMap]
+  );
+
+  const adaptiveWidthMap = useMemo(() => {
+    const result = new Map<ColumnKey, number>();
+    if (visibleColumns.length === 0) return result;
+
+    const fixedColumns = visibleColumns.filter((key) => FIXED_WIDTH_COLUMNS.has(key));
+    const nonFixedColumns = visibleColumns.filter((key) => !FIXED_WIDTH_COLUMNS.has(key));
+
+    let usedWidth = 0;
+
+    for (const key of fixedColumns) {
+      const width = getBaseColumnWidth(key);
+      result.set(key, width);
+      usedWidth += width;
+    }
+
+    const manualNonFixed: ColumnKey[] = [];
+    const autoNonFixed: Array<Exclude<ColumnKey, "model" | "route" | "credentialName">> = [];
+
+    for (const key of nonFixedColumns) {
+      const setting = columnSettingMap.get(key);
+      if (setting?.width !== null && setting?.width !== undefined) {
+        manualNonFixed.push(key);
+      } else {
+        autoNonFixed.push(key as Exclude<ColumnKey, "model" | "route" | "credentialName">);
+      }
+    }
+
+    for (const key of manualNonFixed) {
+      const minRequired = NON_FIXED_CONTENT_MIN_WIDTHS[key as Exclude<ColumnKey, "model" | "route" | "credentialName">];
+      const width = Math.max(getBaseColumnWidth(key), minRequired);
+      result.set(key, width);
+      usedWidth += width;
+    }
+
+    if (autoNonFixed.length === 0) {
+      return result;
+    }
+
+    const available = tableContainerWidth > 0 ? tableContainerWidth - 8 : 0;
+    const minTotal = autoNonFixed.reduce((sum, key) => sum + NON_FIXED_CONTENT_MIN_WIDTHS[key], 0);
+    const remaining = Math.max(0, available - usedWidth);
+
+    if (remaining <= minTotal || available <= 0) {
+      for (const key of autoNonFixed) {
+        result.set(key, NON_FIXED_CONTENT_MIN_WIDTHS[key]);
+      }
+      return result;
+    }
+
+    const extraPerColumn = Math.floor((remaining - minTotal) / autoNonFixed.length);
+    for (const key of autoNonFixed) {
+      result.set(key, NON_FIXED_CONTENT_MIN_WIDTHS[key] + extraPerColumn);
+    }
+
+    return result;
+  }, [visibleColumns, getBaseColumnWidth, columnSettingMap, tableContainerWidth]);
+
+  const beginResizeColumn = useCallback(
+    (key: ColumnKey, event: ReactMouseEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const current = columnSettingMap.get(key);
+      if (!current) return;
+      const currentRenderedWidth = Math.round(event.currentTarget.parentElement?.getBoundingClientRect().width ?? DEFAULT_COLUMN_WIDTHS[key]);
+
+      resizingColumnRef.current = {
+        key,
+        startX: event.clientX,
+        startWidth: currentRenderedWidth
+      };
+
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        const resizing = resizingColumnRef.current;
+        if (!resizing) return;
+        const delta = moveEvent.clientX - resizing.startX;
+        setColumnWidth(resizing.key, resizing.startWidth + delta);
+      };
+
+      const onMouseUp = () => {
+        resizingColumnRef.current = null;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+      };
+
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    },
+    [columnSettingMap, setColumnWidth]
+  );
 
   const isEmpty = !loading && records.length === 0;
   const loadingEmpty = loading && records.length === 0;
@@ -175,12 +513,13 @@ export default function RecordsPage() {
       if (cursorValue) params.set("cursor", cursorValue);
       if (appliedModel) params.set("model", appliedModel);
       if (appliedRoute) params.set("route", appliedRoute);
+      if (appliedSource) params.set("source", appliedSource);
       if (appliedStart) params.set("start", new Date(appliedStart).toISOString());
       if (appliedEnd) params.set("end", new Date(appliedEnd).toISOString());
       if (includeFilters) params.set("includeFilters", "1");
       return params;
     },
-    [sortField, sortOrder, appliedModel, appliedRoute, appliedStart, appliedEnd]
+    [sortField, sortOrder, appliedModel, appliedRoute, appliedSource, appliedStart, appliedEnd]
   );
 
   const fetchRecords = useCallback(
@@ -203,6 +542,9 @@ export default function RecordsPage() {
         }
         if (data.filters?.routes?.length) {
           setRoutes(data.filters.routes);
+        }
+        if (data.filters?.sources?.length) {
+          setSources(data.filters.sources);
         }
       } catch (err) {
         setError((err as Error).message || "加载失败");
@@ -305,26 +647,28 @@ export default function RecordsPage() {
     return () => observer.disconnect();
   }, [cursor, fetchRecords, hasMore, loading]);
 
-  const handleSort = (field: SortField) => {
+  const handleSort = useCallback((field: SortField) => {
     if (field === sortField) {
       setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
       setSortOrder("desc");
     }
-  };
+  }, [sortField]);
 
   useEffect(() => {
     resetAndFetch(false);
   }, [sortField, sortOrder, resetAndFetch]);
 
-  const applyFilters = (overrides?: { model?: string; route?: string; start?: string; end?: string }) => {
+  const applyFilters = (overrides?: { model?: string; route?: string; source?: string; start?: string; end?: string }) => {
     const nextModel = (overrides?.model ?? modelInput).trim();
     const nextRoute = (overrides?.route ?? routeInput).trim();
+    const nextSource = (overrides?.source ?? sourceInput).trim();
     const nextStart = overrides?.start ?? startInput;
     const nextEnd = overrides?.end ?? endInput;
     setAppliedModel(nextModel);
     setAppliedRoute(nextRoute);
+    setAppliedSource(nextSource);
     setAppliedStart(nextStart);
     setAppliedEnd(nextEnd);
   };
@@ -339,9 +683,14 @@ export default function RecordsPage() {
     setAppliedRoute(val.trim());
   };
 
+  const applySourceOption = (val: string) => {
+    setSourceInput(val);
+    setAppliedSource(val.trim());
+  };
+
   useEffect(() => {
     resetAndFetch(false);
-  }, [appliedModel, appliedRoute, appliedStart, appliedEnd, resetAndFetch]);
+  }, [appliedModel, appliedRoute, appliedSource, appliedStart, appliedEnd, resetAndFetch]);
 
   const costTone = useCallback((cost: number) => {
     if (cost >= 5) return "bg-red-500/20 text-red-300 ring-1 ring-red-500/40";
@@ -356,17 +705,114 @@ export default function RecordsPage() {
       : "bg-sky-500/20 text-sky-200 ring-1 ring-sky-500/40";
   }, []);
 
+  const providerTone = useCallback((provider: string | null) => {
+    const val = (provider || "").toLowerCase();
+    if (val.includes("openai")) return "bg-emerald-500/20 text-emerald-200 ring-1 ring-emerald-500/40";
+    if (val.includes("anthropic") || val.includes("claude")) return "bg-orange-500/20 text-orange-200 ring-1 ring-orange-500/40";
+    if (val.includes("google") || val.includes("gemini")) return "bg-blue-500/20 text-blue-200 ring-1 ring-blue-500/40";
+    if (val.includes("azure")) return "bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-500/40";
+    if (val.includes("deepseek")) return "bg-indigo-500/20 text-indigo-200 ring-1 ring-indigo-500/40";
+    if (val.includes("xai") || val.includes("grok")) return "bg-fuchsia-500/20 text-fuchsia-200 ring-1 ring-fuchsia-500/40";
+    if (val.includes("openrouter")) return "bg-violet-500/20 text-violet-200 ring-1 ring-violet-500/40";
+    if (val.includes("qwen") || val.includes("aliyun") || val.includes("dashscope")) {
+      return "bg-yellow-500/20 text-yellow-200 ring-1 ring-yellow-500/40";
+    }
+    return "bg-slate-700/60 text-slate-300 ring-1 ring-slate-600";
+  }, []);
+
+  const renderHeaderByColumn = useCallback(
+    (columnKey: ColumnKey) => {
+      const sortTarget = SORT_FIELD_BY_COLUMN[columnKey];
+      if (!sortTarget) {
+        return <span className="font-semibold text-slate-300">{COLUMN_LABELS[columnKey]}</span>;
+      }
+
+      return (
+        <SortHeader
+          label={COLUMN_LABELS[columnKey]}
+          active={sortField === sortTarget}
+          order={sortOrder}
+          onClick={() => handleSort(sortTarget)}
+        />
+      );
+    },
+    [sortField, sortOrder, handleSort]
+  );
+
+  const renderCellByColumn = useCallback(
+    (columnKey: ColumnKey, row: UsageRecord) => {
+      switch (columnKey) {
+        case "occurredAt":
+          return <div className="text-sm font-semibold text-white">{formatTimestamp(row.occurredAt)}</div>;
+        case "model":
+          return (
+            <div className="max-w-[220px] truncate font-semibold text-white" title={row.model}>
+              {row.model}
+            </div>
+          );
+        case "route":
+          return (
+            <div className="max-w-[200px] truncate text-slate-300" title={row.route}>
+              {row.route}
+            </div>
+          );
+        case "credentialName":
+          return (
+            <div className="max-w-[220px] truncate text-slate-300" title={row.credentialName || "-"}>
+              {row.credentialName || "-"}
+            </div>
+          );
+        case "provider":
+          return (
+            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${providerTone(row.provider)}`}>
+              {row.provider || "-"}
+            </span>
+          );
+        case "totalTokens":
+          return (
+            <span className="rounded-full bg-indigo-500/20 px-2.5 py-1 text-xs font-semibold text-indigo-200 ring-1 ring-indigo-500/30">
+              {formatNumberWithCommas(row.totalTokens)}
+            </span>
+          );
+        case "inputTokens":
+          return <span style={{ color: TOKEN_COLORS.input }}>{formatNumberWithCommas(row.inputTokens)}</span>;
+        case "outputTokens":
+          return <span style={{ color: TOKEN_COLORS.output }}>{formatNumberWithCommas(row.outputTokens)}</span>;
+        case "reasoningTokens":
+          return <span style={{ color: TOKEN_COLORS.reasoning }}>{formatNumberWithCommas(row.reasoningTokens)}</span>;
+        case "cachedTokens":
+          return <span style={{ color: TOKEN_COLORS.cached }}>{formatNumberWithCommas(row.cachedTokens)}</span>;
+        case "cost":
+          return (
+            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${costTone(row.cost)}`}>
+              {formatCost(row.cost)}
+            </span>
+          );
+        case "isError":
+          return (
+            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${statusTone(row.isError)}`}>
+              {row.isError ? "失败" : "成功"}
+            </span>
+          );
+        default:
+          return null;
+      }
+    },
+    [costTone, providerTone, statusTone]
+  );
+
   const filterSummary = useMemo(() => {
     const parts: string[] = [];
     if (appliedModel) parts.push(`模型: ${appliedModel}`);
-    if (appliedRoute) parts.push(`密钥: ${hideRouteValue ? "-" : appliedRoute}`);
+    if (appliedRoute) parts.push(`密钥: ${appliedRoute}`);
+    if (appliedSource) parts.push(`凭证: ${appliedSource}`);
     if (appliedStart || appliedEnd) {
       const startLabel = appliedStart ? formatDateTimeDisplay(appliedStart) : "-";
       const endLabel = appliedEnd ? formatDateTimeDisplay(appliedEnd) : "-";
       parts.push(`时间: ${startLabel} ~ ${endLabel}`);
     }
     return parts.length ? parts.join(" / ") : "暂无筛选";
-  }, [appliedModel, appliedRoute, appliedStart, appliedEnd, hideRouteValue]);
+  }, [appliedModel, appliedRoute, appliedSource, appliedStart, appliedEnd]);
 
   const rangeLabel = useMemo(() => {
     if (!startInput && !endInput) return "选择时间范围";
@@ -426,9 +872,62 @@ export default function RecordsPage() {
   }, [rangePickerOpen]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem("records-hide-route", hideRouteValue ? "1" : "0");
-  }, [hideRouteValue]);
+    if (typeof window === "undefined") {
+      setColumnSettingsReady(true);
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(COLUMN_SETTINGS_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as unknown;
+        setColumnSettings(normalizeColumnSettings(parsed));
+      }
+    } catch {
+      setColumnSettings(
+        DEFAULT_COLUMN_ORDER.map((key) => ({
+          key,
+          visible: true,
+          width: FIXED_WIDTH_COLUMNS.has(key) ? DEFAULT_COLUMN_WIDTHS[key] : null
+        }))
+      );
+    } finally {
+      setColumnSettingsReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !columnSettingsReady) return;
+    window.localStorage.setItem(COLUMN_SETTINGS_STORAGE_KEY, JSON.stringify(columnSettings));
+  }, [columnSettings, columnSettingsReady]);
+
+  useEffect(() => {
+    if (!columnPanelOpen) return;
+    const onDocClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (columnPanelRef.current && !columnPanelRef.current.contains(target)) {
+        setColumnPanelOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [columnPanelOpen]);
+
+  useEffect(() => {
+    const element = tableWrapperRef.current;
+    if (!element) return;
+
+    const updateWidth = () => {
+      setTableContainerWidth(element.clientWidth);
+    };
+
+    updateWidth();
+
+    if (typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(() => updateWidth());
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <main className="min-h-screen bg-slate-900 px-6 py-8 text-slate-100">
@@ -487,6 +986,18 @@ export default function RecordsPage() {
             onClear={() => {
               setRouteInput("");
               setAppliedRoute("");
+            }}
+          />
+          <ComboBox
+            value={sourceInput}
+            onChange={setSourceInput}
+            options={sources}
+            placeholder="按凭证过滤"
+            darkMode={true}
+            onSelectOption={applySourceOption}
+            onClear={() => {
+              setSourceInput("");
+              setAppliedSource("");
             }}
           />
 
@@ -603,10 +1114,12 @@ export default function RecordsPage() {
               onClick={() => {
                 setModelInput("");
                 setRouteInput("");
+                setSourceInput("");
                 setStartInput("");
                 setEndInput("");
                 setAppliedModel("");
                 setAppliedRoute("");
+                setAppliedSource("");
                 setAppliedStart("");
                 setAppliedEnd("");
               }}
@@ -616,177 +1129,124 @@ export default function RecordsPage() {
             </button>
           </div>
 
-          <div className="ml-auto flex items-center gap-3">
-            <label className="inline-flex items-center gap-2 text-sm text-slate-300">
-              <span>隐藏密钥</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={hideRouteValue}
-                onClick={() => setHideRouteValue((prev) => !prev)}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition ${
-                  hideRouteValue ? "bg-indigo-500" : "bg-slate-600"
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                    hideRouteValue ? "translate-x-4" : "translate-x-0.5"
-                  }`}
-                />
-              </button>
-            </label>
+          <div className="ml-auto relative" ref={columnPanelRef}>
+            <button
+              type="button"
+              onClick={() => setColumnPanelOpen((prev) => !prev)}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-200 hover:border-slate-500"
+            >
+              <Columns3 className="h-4 w-4 text-indigo-400" />
+              <span>列选择</span>
+            </button>
+
+            {columnPanelOpen ? (
+              <div className="absolute right-0 z-30 mt-2 w-[300px] rounded-2xl border border-slate-700 bg-slate-900 p-3 shadow-xl">
+                {/* <div className="mb-2 text-xs text-slate-400">勾选显示列，按住手柄拖拽改顺序，表头右侧可拖拽列宽</div> */}
+                <div className="max-h-72 space-y-1 overflow-auto pr-1">
+                  {columnSettings.map((column) => (
+                    <div
+                      key={column.key}
+                      draggable
+                      onDragStart={() => onColumnDragStart(column.key)}
+                      onDragOver={(event) => onColumnDragOver(column.key, event)}
+                      onDrop={(event) => onColumnDrop(column.key, event)}
+                      onDragEnd={onColumnDragEnd}
+                      className="relative flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/60 px-2 py-1.5"
+                    >
+                      {dragIndicator?.key === column.key && dragIndicator.position === "before" ? (
+                        <span className="pointer-events-none absolute left-2 right-2 top-0 h-px -translate-y-1/2 bg-indigo-300/90 shadow-[0_0_6px_rgba(129,140,248,0.45)]" />
+                      ) : null}
+                      {dragIndicator?.key === column.key && dragIndicator.position === "after" ? (
+                        <span className="pointer-events-none absolute left-2 right-2 bottom-0 h-px translate-y-1/2 bg-indigo-300/90 shadow-[0_0_6px_rgba(129,140,248,0.45)]" />
+                      ) : null}
+                      <label className="inline-flex items-center gap-2 text-sm text-slate-200">
+                        <span className="cursor-grab text-slate-500 active:cursor-grabbing" title="按住拖拽排序">
+                          <GripVertical className="h-4 w-4" />
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={column.visible}
+                          onChange={() => toggleColumnVisibility(column.key)}
+                          disabled={column.visible && visibleColumnCount === 1}
+                          className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-indigo-500"
+                        />
+                        <span>{COLUMN_LABELS[column.key]}</span>
+                        <span className="text-xs text-slate-500">{column.width ? `${column.width}px` : "auto"}</span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
         <p className="mt-3 text-xs text-slate-500">当前筛选：{filterSummary}</p>
       </section>
 
       <section className={`mt-5 rounded-2xl bg-slate-800/40 p-4 shadow-sm ring-1 ring-slate-700 ${loadingEmpty ? "min-h-[100vh]" : ""}`}>
-        <div className="overflow-auto">
-          <table className="min-w-[1200px] w-[99%] mx-auto table-fixed border-separate border-spacing-y-2">
-            <thead className="sticky top-0 z-10">
-              <tr className="text-left text-xs uppercase tracking-wider text-slate-400">
-                <th className="px-3 py-2 w-40">
-                  <SortHeader
-                    label="时间"
-                    active={sortField === "occurredAt"}
-                    order={sortOrder}
-                    onClick={() => handleSort("occurredAt")}
-                  />
-                </th>
-                <th className="px-3 py-2 w-60">
-                  <SortHeader
-                    label="模型"
-                    active={sortField === "model"}
-                    order={sortOrder}
-                    onClick={() => handleSort("model")}
-                  />
-                </th>
-                <th className="px-3 py-2 w-52">
-                  <SortHeader
-                    label="密钥"
-                    active={sortField === "route"}
-                    order={sortOrder}
-                    onClick={() => handleSort("route")}
-                  />
-                </th>
-                <th className="px-3 py-2 w-28">
-                  <SortHeader
-                    label="Tokens"
-                    active={sortField === "totalTokens"}
-                    order={sortOrder}
-                    onClick={() => handleSort("totalTokens")}
-                  />
-                </th>
-                <th className="px-3 py-2 w-24">
-                  <SortHeader
-                    label="输入"
-                    active={sortField === "inputTokens"}
-                    order={sortOrder}
-                    onClick={() => handleSort("inputTokens")}
-                  />
-                </th>
-                <th className="px-3 py-2 w-24">
-                  <SortHeader
-                    label="输出"
-                    active={sortField === "outputTokens"}
-                    order={sortOrder}
-                    onClick={() => handleSort("outputTokens")}
-                  />
-                </th>
-                <th className="px-3 py-2 w-24">
-                  <SortHeader
-                    label="思考"
-                    active={sortField === "reasoningTokens"}
-                    order={sortOrder}
-                    onClick={() => handleSort("reasoningTokens")}
-                  />
-                </th>
-                <th className="px-3 py-2 w-24">
-                  <SortHeader
-                    label="缓存"
-                    active={sortField === "cachedTokens"}
-                    order={sortOrder}
-                    onClick={() => handleSort("cachedTokens")}
-                  />
-                </th>
-                <th className="px-3 py-2 w-28">
-                  <SortHeader
-                    label="费用"
-                    active={sortField === "cost"}
-                    order={sortOrder}
-                    onClick={() => handleSort("cost")}
-                  />
-                </th>
-                <th className="px-3 py-2 w-20">
-                  <SortHeader
-                    label="状态"
-                    active={sortField === "isError"}
-                    order={sortOrder}
-                    onClick={() => handleSort("isError")}
-                  />
-                </th>
-              </tr>
-            </thead>
-            <tbody className="text-sm">
-              {records.map((row) => (
-                <tr
-                  key={row.id}
-                  className="rounded-lg bg-slate-900/70 text-slate-100 shadow-sm ring-1 ring-slate-800 transition hover:ring-1.5 hover:ring-indigo-400/40 hover:shadow-[0_0_24px_rgba(99,102,241,0.18)] h-13"
-                >
-                  <td className="px-3 py-3 whitespace-nowrap first:rounded-l-lg last:rounded-r-lg">
-                    <div className="text-sm font-semibold text-white">{formatTimestamp(row.occurredAt)}</div>
-                    {/* <div className="mt-1 text-xs text-slate-500">ID #{row.id}</div> */}
-                  </td>
-                  <td className="px-3 py-3 first:rounded-l-lg last:rounded-r-lg">
-                    <div className="max-w-[220px] truncate font-semibold text-white" title={row.model}>
-                      {row.model}
-                    </div>
-                  </td>
-                  <td className="px-3 py-3 first:rounded-l-lg last:rounded-r-lg">
-                    <div className="max-w-[200px] truncate text-slate-300" title={hideRouteValue ? "-" : row.route}>
-                      {hideRouteValue ? "-" : row.route}
-                    </div>
-                  </td>
-                  <td className="px-3 py-3 first:rounded-l-lg last:rounded-r-lg">
-                    <span className="rounded-full bg-indigo-500/20 px-2.5 py-1 text-xs font-semibold text-indigo-200 ring-1 ring-indigo-500/30">
-                      {formatNumberWithCommas(row.totalTokens)}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3 text-sm first:rounded-l-lg last:rounded-r-lg">
-                    <span className="font-medium" style={{ color: TOKEN_COLORS.input }}>
-                      {formatNumberWithCommas(row.inputTokens)}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3 text-sm first:rounded-l-lg last:rounded-r-lg">
-                    <span className="font-medium" style={{ color: TOKEN_COLORS.output }}>
-                      {formatNumberWithCommas(row.outputTokens)}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3 text-sm first:rounded-l-lg last:rounded-r-lg">
-                    <span className="font-medium" style={{ color: TOKEN_COLORS.reasoning }}>
-                      {formatNumberWithCommas(row.reasoningTokens)}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3 text-sm first:rounded-l-lg last:rounded-r-lg">
-                    <span className="font-medium" style={{ color: TOKEN_COLORS.cached }}>
-                      {formatNumberWithCommas(row.cachedTokens)}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3 first:rounded-l-lg last:rounded-r-lg">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${costTone(row.cost)}`}>
-                      {formatCost(row.cost)}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3 first:rounded-l-lg last:rounded-r-lg">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${statusTone(row.isError)}`}>
-                      {row.isError ? "失败" : "成功"}
-                    </span>
-                  </td>
+        {!loadingEmpty ? (
+          <div ref={tableWrapperRef} className="overflow-auto">
+            <table className="min-w-full w-full table-fixed border-separate border-spacing-y-2">
+              <thead className="sticky top-0 z-10">
+                <tr className="text-left text-[13px] uppercase tracking-wide text-slate-400">
+                  {visibleColumns.map((columnKey) => {
+                    const width = adaptiveWidthMap.get(columnKey) ?? DEFAULT_COLUMN_WIDTHS[columnKey];
+                    return (
+                      <th
+                        key={columnKey}
+                        className="group/col relative px-3 py-2"
+                        style={width ? { width: `${width}px`, minWidth: `${width}px` } : undefined}
+                      >
+                        {renderHeaderByColumn(columnKey)}
+                        <div
+                          role="separator"
+                          aria-orientation="vertical"
+                          onMouseDown={(event) => beginResizeColumn(columnKey, event)}
+                          className="group absolute right-0 top-0 h-full w-3 cursor-col-resize select-none opacity-0 pointer-events-none transition-opacity duration-250 group-hover/col:opacity-100 group-hover/col:pointer-events-auto"
+                          title="拖拽调整列宽"
+                        >
+                          <span className="absolute right-[4px] top-2 bottom-2 w-px rounded bg-gradient-to-b from-transparent via-slate-400/35 to-transparent opacity-70 transition-all duration-150 group-hover:via-indigo-300/60 group-hover:opacity-100" />
+                          <span className="pointer-events-none absolute right-[3px] top-1/2 h-3 w-[3px] -translate-y-1/2 rounded-full bg-slate-400/35 transition-colors duration-150 group-hover:bg-indigo-300/65" />
+                        </div>
+                      </th>
+                    );
+                  })}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="text-sm">
+                {records.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="group h-13 rounded-lg bg-slate-900/70 text-slate-100 shadow-sm ring-1 ring-slate-800 transition hover:shadow-[0_0_24px_rgba(99,102,241,0.18)]"
+                  >
+                    {visibleColumns.map((columnKey, index) => {
+                      const width = adaptiveWidthMap.get(columnKey) ?? DEFAULT_COLUMN_WIDTHS[columnKey];
+                      const isFirst = index === 0;
+                      const isLast = index === visibleColumns.length - 1;
+                      return (
+                        <td
+                          key={`${row.id}-${columnKey}`}
+                          className={`whitespace-nowrap border-y border-transparent px-3 py-3 transition group-hover:border-indigo-400/40 ${
+                            isFirst
+                              ? "rounded-l-lg border-l border-l-transparent group-hover:border-l-indigo-400/40 group-hover:shadow-[-10px_0_16px_-10px_rgba(99,102,241,0.48)]"
+                              : ""
+                          } ${
+                            isLast
+                              ? "rounded-r-lg border-r border-r-transparent group-hover:border-r-indigo-400/40 group-hover:shadow-[10px_0_16px_-10px_rgba(99,102,241,0.48)]"
+                              : ""
+                          }`}
+                          style={width ? { width: `${width}px`, minWidth: `${width}px` } : undefined}
+                        >
+                          {renderCellByColumn(columnKey, row)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
 
         {loadingEmpty ? (
           <div className="mt-4 grid min-h-[55vh] gap-3">

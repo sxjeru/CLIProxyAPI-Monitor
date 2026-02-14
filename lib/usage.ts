@@ -71,6 +71,16 @@ function parseDetailTimestamp(detail: z.infer<typeof detailSchema>, fallback: Da
   return Number.isFinite(date.getTime()) ? date : fallback;
 }
 
+function parseDetailSource(detail: z.infer<typeof detailSchema>) {
+  return detail.source?.trim() ?? "";
+}
+
+function parseDetailAuthIndex(detail: z.infer<typeof detailSchema>) {
+  if (detail.auth_index === undefined || detail.auth_index === null) return null;
+  const value = String(detail.auth_index).trim();
+  return value.length > 0 ? value : null;
+}
+
 function isDetailSuccess(detail: z.infer<typeof detailSchema>) {
   // failed=true 表示失败，success=false 表示失败，其余视为成功
   if (detail.failed === true) return false;
@@ -104,6 +114,8 @@ export function toUsageRecords(payload: UsageResponse, pulledAt: Date = new Date
             occurredAt,
             syncedAt: pulledAt,
             route,
+            source: parseDetailSource(detail),
+            authIndex: parseDetailAuthIndex(detail),
             model,
             totalTokens: tokenSlice.totalTokens,
             inputTokens: tokenSlice.inputTokens,

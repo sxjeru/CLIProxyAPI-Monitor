@@ -1,4 +1,4 @@
-import { sql, and, gte, lte } from "drizzle-orm";
+import { sql, and, eq, gte, lte } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { usageRecords } from "@/lib/db/schema";
@@ -45,7 +45,16 @@ function normalizeMaxPoints(value?: number | null) {
   return Math.min(Math.max(Math.floor(value), 1_000), 100_000);
 }
 
-export async function getExplorePoints(daysInput?: number, opts?: { maxPoints?: number | null; start?: string | Date | null; end?: string | Date | null }) {
+export async function getExplorePoints(
+  daysInput?: number,
+  opts?: {
+    maxPoints?: number | null;
+    start?: string | Date | null;
+    end?: string | Date | null;
+    route?: string | null;
+    name?: string | null;
+  }
+) {
   const startDate = parseDateInput(opts?.start);
   const endDate = parseDateInput(opts?.end);
   const hasCustomRange = startDate && endDate && endDate >= startDate;
@@ -57,18 +66,58 @@ export async function getExplorePoints(daysInput?: number, opts?: { maxPoints?: 
   const since = hasCustomRange ? withDayStart(startDate!) : new Date(Date.now() - days * DAY_MS);
   const until = hasCustomRange ? withDayEnd(endDate!) : undefined;
 
-  const whereParts: SQL[] = [gte(usageRecords.occurredAt, since)];
-  if (until) whereParts.push(lte(usageRecords.occurredAt, until));
-  const where = and(...whereParts);
+  const baseWhereParts: SQL[] = [gte(usageRecords.occurredAt, since)];
+  if (until) baseWhereParts.push(lte(usageRecords.occurredAt, until));
 
-  const totalRows = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(usageRecords)
-    .where(where);
+  const whereParts: SQL[] = [...baseWhereParts];
+  if (opts?.route) whereParts.push(eq(usageRecords.route, opts.route));
+  if (opts?.name) {
+    whereParts.push(
+      sql`coalesce(
+        nullif((select af.name from auth_file_mappings af where af.auth_id = ${usageRecords.authIndex} limit 1), ''),
+        nullif(${usageRecords.source}, ''),
+        '-'
+      ) = ${opts.name}`
+    );
+  }
+  const where = and(...whereParts);
+  const baseWhere = and(...baseWhereParts);
+
+  const credentialNameExpr = sql<string>`coalesce(
+    nullif((select af.name from auth_file_mappings af where af.auth_id = ${usageRecords.authIndex} limit 1), ''),
+    nullif(${usageRecords.source}, ''),
+    '-'
+  )`;
+
+  const [totalRows, availableRouteRows, availableNameRows] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(usageRecords)
+      .where(where),
+    db
+      .select({ route: usageRecords.route })
+      .from(usageRecords)
+      .where(baseWhere)
+      .groupBy(usageRecords.route)
+      .orderBy(usageRecords.route)
+      .limit(200),
+    db
+      .select({ name: credentialNameExpr })
+      .from(usageRecords)
+      .where(baseWhere)
+      .groupBy(credentialNameExpr)
+      .orderBy(credentialNameExpr)
+      .limit(200)
+  ]);
 
   const total = Number(totalRows?.[0]?.count ?? 0);
+  const filters = {
+    routes: availableRouteRows.map((row) => row.route).filter(Boolean),
+    names: availableNameRows.map((row) => row.name).filter((name): name is string => Boolean(name) && name !== "-")
+  };
+
   if (total <= 0) {
-    return { days, total: 0, returned: 0, step: 1, points: [] as ExplorePoint[] };
+    return { days, total: 0, returned: 0, step: 1, points: [] as ExplorePoint[], filters };
   }
 
   const step = total > maxPoints ? Math.ceil(total / maxPoints) : 1;
@@ -108,6 +157,7 @@ export async function getExplorePoints(daysInput?: number, opts?: { maxPoints?: 
     total,
     returned: points.length,
     step,
+    filters,
     points: points.map((p) => ({
       ts: Number(p.ts),
       tokens: Number(p.tokens ?? 0),

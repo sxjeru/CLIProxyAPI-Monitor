@@ -13,12 +13,14 @@ const EXPLORE_CACHE_TTL_MS = 30_000;
 const EXPLORE_CACHE_MAX_ENTRIES = 100;
 const exploreCache = new Map<string, CachedExplore>();
 
-function makeCacheKey(input: { days?: number; maxPoints?: number; start?: string | null; end?: string | null }) {
+function makeCacheKey(input: { days?: number; maxPoints?: number; start?: string | null; end?: string | null; route?: string | null; name?: string | null }) {
   return JSON.stringify({
     days: input.days ?? null,
     maxPoints: input.maxPoints ?? null,
     start: input.start ?? null,
-    end: input.end ?? null
+    end: input.end ?? null,
+    route: input.route ?? null,
+    name: input.name ?? null
   });
 }
 
@@ -53,17 +55,19 @@ export async function GET(request: Request) {
     const maxPointsParam = searchParams.get("maxPoints");
     const start = searchParams.get("start");
     const end = searchParams.get("end");
+    const route = searchParams.get("route");
+    const name = searchParams.get("name");
 
     const days = daysParam ? Number.parseInt(daysParam, 10) : undefined;
     const maxPoints = maxPointsParam ? Number.parseInt(maxPointsParam, 10) : undefined;
 
-    const cacheKey = makeCacheKey({ days, maxPoints, start, end });
+    const cacheKey = makeCacheKey({ days, maxPoints, start, end, route, name });
     const cached = getCached(cacheKey);
     if (cached) {
       return NextResponse.json(cached, { status: 200 });
     }
 
-    const payload = await getExplorePoints(days, { maxPoints, start, end });
+    const payload = await getExplorePoints(days, { maxPoints, start, end, route, name });
     setCached(cacheKey, payload);
     return NextResponse.json(payload, { status: 200 });
   } catch (error) {

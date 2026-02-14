@@ -1,12 +1,15 @@
 import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { modelPrices, usageRecords } from "@/lib/db/schema";
+import { authFileMappings, modelPrices, usageRecords } from "@/lib/db/schema";
 
 export type UsageRecordRow = {
   id: number;
   occurredAt: Date;
   route: string;
+  source: string;
+  credentialName: string;
+  provider: string | null;
   model: string;
   totalTokens: number;
   inputTokens: number;
@@ -26,6 +29,7 @@ type SortField =
   | "occurredAt"
   | "model"
   | "route"
+  | "source"
   | "totalTokens"
   | "inputTokens"
   | "outputTokens"
@@ -76,6 +80,8 @@ const COST_EXPR = sql<number>`coalesce(
   0
 )`;
 
+const CREDENTIAL_NAME_EXPR = sql<string>`coalesce(nullif(${authFileMappings.name}, ''), nullif(${usageRecords.source}, ''), '-')`;
+
 function parseCursor(input: string | null): UsageRecordCursor | null {
   if (!input) return null;
   try {
@@ -120,6 +126,7 @@ export async function getUsageRecords(input: {
   cursor?: string | null;
   model?: string | null;
   route?: string | null;
+  source?: string | null;
   start?: string | null;
   end?: string | null;
   includeFilters?: boolean;
@@ -153,12 +160,18 @@ export async function getUsageRecords(input: {
     whereParts.push(eq(usageRecords.route, input.route));
   }
 
+  if (input.source) {
+    whereParts.push(sql`${CREDENTIAL_NAME_EXPR} = ${input.source}`);
+  }
+
   const sortExpr = (() => {
     switch (sortField) {
       case "model":
         return usageRecords.model;
       case "route":
         return usageRecords.route;
+      case "source":
+        return CREDENTIAL_NAME_EXPR;
       case "totalTokens":
         return usageRecords.totalTokens;
       case "inputTokens":
@@ -189,6 +202,9 @@ export async function getUsageRecords(input: {
       id: usageRecords.id,
       occurredAt: usageRecords.occurredAt,
       route: usageRecords.route,
+      source: usageRecords.source,
+      credentialName: CREDENTIAL_NAME_EXPR,
+      provider: authFileMappings.provider,
       model: usageRecords.model,
       totalTokens: usageRecords.totalTokens,
       inputTokens: usageRecords.inputTokens,
@@ -199,6 +215,7 @@ export async function getUsageRecords(input: {
       cost: COST_EXPR
     })
     .from(usageRecords)
+    .leftJoin(authFileMappings, eq(usageRecords.authIndex, authFileMappings.authId))
     .where(where)
     .orderBy(
       sortOrder === "asc" ? asc(sortExpr) : desc(sortExpr),
@@ -225,6 +242,8 @@ export async function getUsageRecords(input: {
           return Number(last.cost ?? 0);
         case "route":
           return last.route;
+        case "source":
+          return last.credentialName;
         case "inputTokens":
           return last.inputTokens;
         case "outputTokens":
@@ -244,9 +263,9 @@ export async function getUsageRecords(input: {
     return Buffer.from(JSON.stringify(cursorPayload)).toString("base64");
   })();
 
-  let filters: { models: string[]; routes: string[] } | undefined;
+  let filters: { models: string[]; routes: string[]; sources: string[] } | undefined;
   if (input.includeFilters) {
-    const [modelRows, routeRows] = await Promise.all([
+    const [modelRows, routeRows, sourceRows] = await Promise.all([
       db
         .select({ model: usageRecords.model })
         .from(usageRecords)
@@ -260,9 +279,21 @@ export async function getUsageRecords(input: {
         .where(where)
         .groupBy(usageRecords.route)
         .orderBy(usageRecords.route)
-        .limit(200)
+        .limit(200),
+      db
+        .select({ source: CREDENTIAL_NAME_EXPR })
+        .from(usageRecords)
+        .leftJoin(authFileMappings, eq(usageRecords.authIndex, authFileMappings.authId))
+        .where(where)
+        .groupBy(CREDENTIAL_NAME_EXPR)
+        .orderBy(CREDENTIAL_NAME_EXPR)
+        .limit(200),
     ]);
-    filters = { models: modelRows.map((row) => row.model), routes: routeRows.map((row) => row.route) };
+    filters = {
+      models: modelRows.map((row) => row.model),
+      routes: routeRows.map((row) => row.route),
+      sources: sourceRows.map((row) => row.source).filter((name): name is string => Boolean(name) && name !== "-")
+    };
   }
 
   return {

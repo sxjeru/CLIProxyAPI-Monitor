@@ -20,11 +20,13 @@ const OVERVIEW_CACHE_TTL_MS = 30_000;
 const OVERVIEW_CACHE_MAX_ENTRIES = 100;
 const overviewCache = new Map<string, CachedOverview>();
 
-function makeCacheKey(input: { days?: number; model?: string | null; route?: string | null; page?: number; pageSize?: number; start?: string | null; end?: string | null }) {
+function makeCacheKey(input: { days?: number; model?: string | null; route?: string | null; source?: string | null; name?: string | null; page?: number; pageSize?: number; start?: string | null; end?: string | null }) {
   return JSON.stringify({
     days: input.days ?? null,
     model: input.model ?? null,
     route: input.route ?? null,
+    source: input.source ?? null,
+    name: input.name ?? null,
     page: input.page ?? null,
     pageSize: input.pageSize ?? null,
     start: input.start ?? null,
@@ -63,6 +65,8 @@ export async function GET(request: Request) {
     const days = daysParam ? Number.parseInt(daysParam, 10) : undefined;
     const model = searchParams.get("model");
     const route = searchParams.get("route");
+    const source = searchParams.get("source");
+    const name = searchParams.get("name");
     const pageParam = searchParams.get("page");
     const pageSizeParam = searchParams.get("pageSize");
     const start = searchParams.get("start");
@@ -72,7 +76,7 @@ export async function GET(request: Request) {
     const pageSize = pageSizeParam ? Number.parseInt(pageSizeParam, 10) : undefined;
     const skipCacheParam = searchParams.get("skipCache");
     const skipCache = skipCacheParam === "1" || skipCacheParam === "true";
-    const cacheKey = makeCacheKey({ days, model, route, page, pageSize, start, end });
+    const cacheKey = makeCacheKey({ days, model, route, source, name, page, pageSize, start, end });
     if (!skipCache) {
       const cached = getCached(cacheKey);
       if (cached) {
@@ -83,6 +87,8 @@ export async function GET(request: Request) {
     const { overview, empty, days: appliedDays, meta, filters, timezone } = await getOverview(days, {
       model: model || undefined,
       route: route || undefined,
+      source: source || undefined,
+      name: name || undefined,
       page,
       pageSize,
       start,

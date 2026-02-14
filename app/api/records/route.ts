@@ -18,6 +18,7 @@ export async function GET(request: Request) {
       | "occurredAt"
       | "model"
       | "route"
+      | "source"
       | "totalTokens"
       | "inputTokens"
       | "outputTokens"
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
     const cursor = searchParams.get("cursor");
     const model = searchParams.get("model");
     const route = searchParams.get("route");
+    const source = searchParams.get("source");
     const start = searchParams.get("start");
     const end = searchParams.get("end");
     const includeFilters = searchParams.get("includeFilters") === "1";
@@ -43,6 +45,7 @@ export async function GET(request: Request) {
       cursor,
       model: model || undefined,
       route: route || undefined,
+      source: source || undefined,
       start,
       end,
       includeFilters

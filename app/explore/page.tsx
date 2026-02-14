@@ -20,6 +20,7 @@ type ExploreResponse = {
   returned: number;
   step: number;
   points: ExplorePoint[];
+  filters?: { routes: string[]; names: string[] };
   error?: string;
 };
 
@@ -436,6 +437,12 @@ export default function ExplorePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<ExploreResponse | null>(null);
+  const [routeOptions, setRouteOptions] = useState<string[]>([]);
+  const [nameOptions, setNameOptions] = useState<string[]>([]);
+  const [routeInput, setRouteInput] = useState("");
+  const [nameInput, setNameInput] = useState("");
+  const [appliedRoute, setAppliedRoute] = useState("");
+  const [appliedName, setAppliedName] = useState("");
   
   // 堆叠面积图开关
   const [showStackedArea, setShowStackedArea] = useState(true);
@@ -1158,6 +1165,8 @@ export default function ExplorePage() {
         } else {
           params.set("days", String(rangeDays));
         }
+        if (appliedRoute) params.set("route", appliedRoute);
+        if (appliedName) params.set("name", appliedName);
 
         const res = await fetch(`/api/explore?${params.toString()}`, { cache: "no-store" });
         const json: ExploreResponse = await res.json();
@@ -1169,6 +1178,8 @@ export default function ExplorePage() {
         if (!cancelled) {
           setData(json);
           setAppliedDays(json.days ?? rangeDays);
+          setRouteOptions(Array.from(new Set(json.filters?.routes ?? [])));
+          setNameOptions(Array.from(new Set(json.filters?.names ?? [])));
         }
       } catch (err) {
         if (!cancelled) {
@@ -1184,7 +1195,7 @@ export default function ExplorePage() {
     return () => {
       cancelled = true;
     };
-  }, [rangeMode, customStart, customEnd, rangeDays]);
+  }, [rangeMode, customStart, customEnd, rangeDays, appliedRoute, appliedName]);
 
   const models = useMemo(() => {
     const set = new Set<string>();
@@ -1478,6 +1489,18 @@ export default function ExplorePage() {
     setCustomError(null);
   }, [globalSelection]);
 
+  const applyExploreFilters = useCallback(() => {
+    setAppliedRoute(routeInput.trim());
+    setAppliedName(nameInput.trim());
+  }, [routeInput, nameInput]);
+
+  const clearExploreFilters = useCallback(() => {
+    setRouteInput("");
+    setNameInput("");
+    setAppliedRoute("");
+    setAppliedName("");
+  }, []);
+
     return (
       <main className="min-h-screen bg-slate-900 px-6 pb-4 pt-8 text-slate-100">
       <header className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
@@ -1485,8 +1508,8 @@ export default function ExplorePage() {
           <h1 className="text-2xl font-bold text-white">数据探索</h1>
           <p className="text-base text-slate-400">每个点代表一次请求（X=时间，Y=token 数，颜色=模型）</p>
         </div>
-        <div className="flex flex-col items-start gap-2 text-sm text-slate-300 md:items-end">
-          <div className="flex flex-wrap items-center gap-2 md:justify-end">
+        <div className="flex flex-col items-start gap-2 text-sm text-slate-300 md:items-start">
+          <div className="flex flex-wrap items-center gap-2">
             {[7, 14, 30].map((days) => (
               <button
                 key={days}
@@ -1577,7 +1600,7 @@ export default function ExplorePage() {
               跟随仪表盘
             </button>
           </div>
-          <div className="text-xs text-slate-400">
+          <div className="self-end text-right text-xs text-slate-400">
             <span className="text-slate-500">时间范围：</span>
             <span>{rangeSubtitle}</span>
             {data?.step && data.step > 1 ? <span className="ml-3 text-slate-500">{`已抽样：每 ${data.step} 个点取 1 个`}</span> : null}
@@ -1609,7 +1632,55 @@ export default function ExplorePage() {
               重置缩放
             </button>
           )}
-          <div className="ml-auto flex items-center gap-4">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <ComboBox
+                value={routeInput}
+                onChange={setRouteInput}
+                options={routeOptions}
+                placeholder="按 Key 过滤"
+                className="w-40"
+                onSelectOption={(val) => {
+                  setRouteInput(val);
+                  setAppliedRoute(val.trim());
+                }}
+                onClear={() => {
+                  setRouteInput("");
+                  setAppliedRoute("");
+                }}
+              />
+              <ComboBox
+                value={nameInput}
+                onChange={setNameInput}
+                options={nameOptions}
+                placeholder="按凭证过滤"
+                className="w-40"
+                onSelectOption={(val) => {
+                  setNameInput(val);
+                  setAppliedName(val.trim());
+                }}
+                onClear={() => {
+                  setNameInput("");
+                  setAppliedName("");
+                }}
+              />
+              <button
+                type="button"
+                onClick={applyExploreFilters}
+                className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-slate-500"
+              >
+                应用筛选
+              </button>
+              {appliedRoute || appliedName ? (
+                <button
+                  type="button"
+                  onClick={clearExploreFilters}
+                  className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-slate-400 hover:border-slate-500"
+                >
+                  清除
+                </button>
+              ) : null}
+            </div>
             <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-400 hover:text-slate-300">
               <button
                 type="button"
@@ -1919,5 +1990,128 @@ export default function ExplorePage() {
       </section>
       <ScatterTooltip ref={scatterTooltipRef} getModelColor={getModelColor} />
     </main>
+  );
+}
+
+function ComboBox({
+  value,
+  onChange,
+  options,
+  placeholder,
+  className,
+  onSelectOption,
+  onClear
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  options: string[];
+  placeholder?: string;
+  className?: string;
+  onSelectOption?: (val: string) => void;
+  onClear?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [hasTyped, setHasTyped] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const filtered = useMemo(() => {
+    if (!hasTyped) return options;
+    return options.filter((opt) => opt.toLowerCase().includes(value.toLowerCase()));
+  }, [hasTyped, options, value]);
+
+  const closeDropdown = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setOpen(false);
+      setIsVisible(false);
+      setIsClosing(false);
+    }, 100);
+  };
+
+  useEffect(() => {
+    if (open) {
+      requestAnimationFrame(() => {
+        startTransition(() => {
+          setIsVisible(true);
+          setIsClosing(false);
+        });
+      });
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        closeDropdown();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  return (
+    <div className={`relative ${className ?? ""}`} ref={containerRef}>
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => {
+          setHasTyped(true);
+          onChange(e.target.value);
+        }}
+        onFocus={() => {
+          setOpen(true);
+          setHasTyped(false);
+        }}
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 pr-7 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+      />
+      {value ? (
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            onChange("");
+            setHasTyped(false);
+            onClear?.();
+          }}
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded px-1 text-slate-400 transition hover:bg-slate-700 hover:text-slate-200"
+          title="清除"
+        >
+          ×
+        </button>
+      ) : null}
+
+      {isVisible && filtered.length > 0 ? (
+        <div
+          className={`absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-slate-700 bg-slate-900 shadow-lg scrollbar-slim ${
+            isClosing ? "animate-dropdown-out" : "animate-dropdown-in"
+          }`}
+        >
+          {filtered.map((opt) => (
+            <button
+              type="button"
+              key={opt}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onChange(opt);
+                setHasTyped(false);
+                closeDropdown();
+                inputRef.current?.blur();
+                onSelectOption?.(opt);
+              }}
+              className="flex w-full items-start justify-between px-3 py-2 text-left text-xs text-slate-200 transition hover:bg-slate-800"
+            >
+              <span className="whitespace-normal break-words text-left">{opt}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
