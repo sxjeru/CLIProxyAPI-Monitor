@@ -7,6 +7,7 @@
   - 为工具栏新增"散点图"显示开关（默认开启），关闭后 `<Scatter data={[]}>` 跳过全部散点渲染，可在只需查看堆叠面积分布时大幅降低 SVG 节点数。
   - 引入 `deferredFilteredPoints = useDeferredValue(filteredPoints)`，Y 轴直方图、X 轴时间分布、堆叠面积图三个重计算 memo 使用延迟版本，新数据加载完毕时不阻塞主线程渲染。
   - 为两处 `tickFormatter` 的 `v` 参数补充 `: number` 类型注解，消除 TypeScript implicit any 报错。
+  - 模型图例支持 Ctrl/⌘+点击独显：按住 Ctrl（Mac 为 ⌘）单击某图例，隐藏所有其他模型，仅保留该模型可见；若目标模型已处于独显状态则恢复全部；图例悬停提示更新为"点击隐藏，Ctrl/⌘+点击独显"。
 
 - 首页统计卡片数值优化：
   - 平均 TPM、平均 RPM 均移除尾随零小数（`10.00` → `10`，`1.50` → `1.5`）。

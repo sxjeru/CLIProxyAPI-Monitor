@@ -309,6 +309,7 @@ type ModelLegendProps = {
   onMouseEnter: (model: string) => void;
   onMouseLeave: () => void;
   onClick: (model: string) => void;
+  onCtrlClick: (model: string) => void;
 };
 
 const ModelLegend = memo(function ModelLegend({
@@ -318,13 +319,14 @@ const ModelLegend = memo(function ModelLegend({
   onMouseEnter,
   onMouseLeave,
   onClick,
+  onCtrlClick,
 }: ModelLegendProps) {
   if (models.length === 0) return null;
   
   return (
     <div className="mt-3 rounded-xl bg-slate-900/30 p-3 ring-1 ring-slate-800">
       <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300">
-        <span className="text-slate-400">模型图例（悬停高亮，点击隐藏）</span>
+        <span className="text-slate-400">模型图例（悬停高亮，点击隐藏，Ctrl + 点击单独显示）</span>
       </div>
       <div className="mt-2 max-h-20 overflow-auto pr-1">
         <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-slate-300">
@@ -337,7 +339,14 @@ const ModelLegend = memo(function ModelLegend({
                 className={`flex items-center gap-2 rounded-md px-1.5 py-0.5 transition-all hover:bg-slate-600/40 ${isHidden ? 'opacity-40' : ''}`}
                 onMouseEnter={() => onMouseEnter(m)}
                 onMouseLeave={onMouseLeave}
-                onClick={() => onClick(m)}
+                onClick={(e) => {
+                  if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    onCtrlClick(m);
+                  } else {
+                    onClick(m);
+                  }
+                }}
               >
                 <span 
                   className={`h-2.5 w-2.5 rounded-full ${isHidden ? 'ring-1 ring-slate-500' : ''}`} 
@@ -1432,6 +1441,19 @@ export default function ExplorePage() {
     });
   }, []);
 
+  // Ctrl/⌘ + 点击：独显单一模型；如果已是独显状态则恢复全部
+  const handleLegendCtrlClickWithModels = useCallback((model: string) => {
+    setHiddenModels(prev => {
+      const isSolo = prev.size === models.length - 1 && !prev.has(model);
+      if (isSolo) {
+        // 已是独显该模型 → 恢复所有
+        return new Set<string>();
+      }
+      // 独显该模型，隐藏其他所有
+      return new Set(models.filter(m => m !== model));
+    });
+  }, [models]);
+
   const clearHover = useCallback(() => {
     scatterTooltipRef.current?.hide();
   }, []);
@@ -1729,6 +1751,7 @@ export default function ExplorePage() {
           onMouseEnter={handleLegendMouseEnter}
           onMouseLeave={handleLegendMouseLeave}
           onClick={handleLegendClick}
+          onCtrlClick={handleLegendCtrlClickWithModels}
         />
 
         <div className="mt-4 flex h-[75vh] flex-col gap-0">
