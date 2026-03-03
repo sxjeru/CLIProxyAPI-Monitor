@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef, startTransition, type FormEvent } from "react";
 import { ResponsiveContainer, LineChart, Line, Area, CartesianGrid, XAxis, YAxis, Tooltip, BarChart, Bar, Legend, ComposedChart, PieChart, Pie, Cell } from "recharts";
-import type { TooltipProps } from "recharts";
 import { formatCurrency, formatNumber, formatCompactNumber, formatNumberWithCommas, formatHourLabel } from "@/lib/utils";
 import { AlertTriangle, Info, LucideIcon, Activity, Save, RefreshCw, Moon, Sun, Pencil, Trash2, Maximize2, CalendarRange, X, DollarSign, Search } from "lucide-react";
 import type { ModelPrice, UsageOverview, UsageSeriesPoint } from "@/lib/types";
@@ -53,24 +52,6 @@ function formatDateInputValue(date: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
-
-type TooltipValue = number | string | Array<number | string> | undefined;
-
-function normalizeTooltipValue(value: TooltipValue) {
-  if (Array.isArray(value)) return normalizeTooltipValue(value[0]);
-  const numeric = typeof value === "number" ? value : Number(value ?? 0);
-  return Number.isFinite(numeric) ? numeric : 0;
-}
-
-const trendTooltipFormatter: TooltipProps<number, string>["formatter"] = (value: number, name: string) => {
-  const numericValue = normalizeTooltipValue(value);
-  return name === "费用" ? [formatCurrency(numericValue), name] : [formatNumberWithCommas(numericValue), name];
-};
-
-const numericTooltipFormatter: TooltipProps<number, string>["formatter"] = (value: number, name: string) => {
-  const numericValue = normalizeTooltipValue(value);
-  return [formatNumberWithCommas(numericValue), name];
-};
 
 function formatHourKeyFromTs(ts: number, formatter: Intl.DateTimeFormat) {
   const parts = formatter.formatToParts(new Date(ts));
