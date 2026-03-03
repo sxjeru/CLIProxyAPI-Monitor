@@ -2,8 +2,12 @@
 
 ## 2026-03-03
 
-- 修复 Vercel 构建报 `invalid_connection_string` 的错误：`@vercel/postgres` 的 `createPool` 强制要求池化连接串（含 `pgbouncer=true`），而项目使用的 `DATABASE_URL` 是直连串，导致模块加载时即报错。
-  - 新增 `pg@8.19.0` 依赖，将 `lib/db/client.ts` 和 `scripts/migrate.mjs` 全部切换到 `drizzle-orm/node-postgres` + `pg`，`pg.Pool`/`pg.Client` 兼容任意直连串，不依赖 Vercel 特定基础设施。
+- 重构数据库连接层，支持通用 PostgreSQL 与 Neon 无服务器 WebSocket 双驱动：
+  - `lib/db/client.ts`：新增条件化驱动工厂，通过 URL 模式（含 `.neon.tech`）或环境变量 `DATABASE_DRIVER=neon|pg` 自动选择 `@neondatabase/serverless`（WebSocket）或 `pg.Pool`（标准 TCP）；Aiven、Supabase、RDS 等默认使用 `pg`。
+  - 新增 `DATABASE_CA` 环境变量支持：`pg` 驱动下可传入 CA 证书 PEM 内容（原始或 Base64 编码），用于 Aiven、自建 PostgreSQL 等需要 `sslmode=verify-full` 的场景。
+  - `scripts/migrate.mjs`：同步更新为动态驱动加载，支持 `DATABASE_CA`，迁移脚本与运行时保持策略一致。
+  - 新增依赖：`@neondatabase/serverless`、`ws`、`@types/ws`、`pg`、`@types/pg`，移除对 `@vercel/postgres` 的直接依赖。
+  - 修复根本原因：`@vercel/postgres` `createPool` 强制要求池化连接串，不兼容直连 URL；构建时模块顶层初始化导致 `invalid_connection_string` 错误；`pg` 不支持 Neon serverless WebSocket 端点（`wss://host:443`）。
 
 ## 2026-02-15
 

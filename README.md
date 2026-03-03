@@ -16,7 +16,9 @@
 	|---|---|---|
 	| CLIPROXY_SECRET_KEY | 登录 CLIProxyAPI 后台管理界面的密钥 | 无 |
 	| CLIPROXY_API_BASE_URL | 自部署的 CLIProxyAPI 根地址 | 如 `https://your-domain.com/` |
-	| DATABASE_URL | 数据库连接串（仅支持 Postgres） | 可直接使用 Vercel Neon |
+	| DATABASE_URL | 数据库连接串（仅支持 Postgres） | 可直接使用 Neon |
+	| DATABASE_DRIVER | `pg` 或 `neon` | 可选；默认自动检测 |
+	| DATABASE_CA | DB 服务端 CA 证书 | 可选；PEM 原始内容或 Base64 编码均可 |
 	| PASSWORD | 访问密码，同时用于调用 `/api/sync` | 可选；留空默认使用 `CLIPROXY_SECRET_KEY` |
 	| CRON_SECRET | 使用 Vercel Cron 时需填写 | 任意字符串均可；建议长度 ≥ 16 |
 
