@@ -897,6 +897,14 @@ export default function DashboardPage() {
     return [...models].sort((a, b) => b.cost - a.cost);
   }, [overviewData]);
 
+  // 按 tokens 降序为每个模型分配固定颜色索引，排名越高颜色越靠前
+  const pieColorIndexMap = useMemo(() => {
+    const models = overviewData?.models ?? [];
+    return new Map(
+      [...models].sort((a, b) => b.tokens - a.tokens).map((m, i) => [m.model, i])
+    );
+  }, [overviewData]);
+
   // 计算实际数据时长（从最早记录到现在）
   const actualTimeSpan = useMemo(() => {
     if (!overviewData?.byHour || overviewData.byHour.length === 0) {
@@ -1795,10 +1803,10 @@ export default function DashboardPage() {
                           setPieTooltipOpen(false);
                         }}
                       >
-                        {overviewData.models.map((_, index) => (
+                        {overviewData.models.map((m, index) => (
                           <Cell 
                             key={`cell-${index}`} 
-                            fill={PIE_COLORS[index % PIE_COLORS.length]}
+                            fill={PIE_COLORS[(pieColorIndexMap.get(m.model) ?? index) % PIE_COLORS.length]}
                             fillOpacity={hoveredPieIndex === null || hoveredPieIndex === index ? 1 : 0.3}
                             style={{ transition: 'fill-opacity 0.2s' }}
                           />
@@ -1870,8 +1878,8 @@ export default function DashboardPage() {
                                 isHighlighted && hoveredPieIndex === originalIndex ? 'ring-2 ring-offset-1' : ''
                               }`}
                               style={{ 
-                                backgroundColor: PIE_COLORS[originalIndex % PIE_COLORS.length],
-                                '--tw-ring-color': isHighlighted && hoveredPieIndex === originalIndex ? PIE_COLORS[originalIndex % PIE_COLORS.length] : 'transparent',
+                                backgroundColor: PIE_COLORS[(pieColorIndexMap.get(item.model) ?? originalIndex) % PIE_COLORS.length],
+                                '--tw-ring-color': isHighlighted && hoveredPieIndex === originalIndex ? PIE_COLORS[(pieColorIndexMap.get(item.model) ?? originalIndex) % PIE_COLORS.length] : 'transparent',
                                 transform: isHighlighted && hoveredPieIndex === originalIndex ? 'scale(1.2)' : 'scale(1)'
                               } as React.CSSProperties} 
                             />
@@ -2541,10 +2549,10 @@ export default function DashboardPage() {
                           setPieTooltipOpen(false);
                         }}
                       >
-                        {overviewData.models.map((_, index) => (
+                        {overviewData.models.map((m, index) => (
                           <Cell 
                             key={`cell-fs-${index}`} 
-                            fill={PIE_COLORS[index % PIE_COLORS.length]}
+                            fill={PIE_COLORS[(pieColorIndexMap.get(m.model) ?? index) % PIE_COLORS.length]}
                             fillOpacity={hoveredPieIndex === null || hoveredPieIndex === index ? 1 : 0.3}
                             style={{ transition: 'fill-opacity 0.2s' }}
                           />
@@ -2616,8 +2624,8 @@ export default function DashboardPage() {
                                 isHighlighted && hoveredPieIndex === originalIndex ? 'ring-2 ring-offset-1' : ''
                               }`}
                               style={{ 
-                                backgroundColor: PIE_COLORS[originalIndex % PIE_COLORS.length],
-                                '--tw-ring-color': isHighlighted && hoveredPieIndex === originalIndex ? PIE_COLORS[originalIndex % PIE_COLORS.length] : 'transparent',
+                                backgroundColor: PIE_COLORS[(pieColorIndexMap.get(item.model) ?? originalIndex) % PIE_COLORS.length],
+                                '--tw-ring-color': isHighlighted && hoveredPieIndex === originalIndex ? PIE_COLORS[(pieColorIndexMap.get(item.model) ?? originalIndex) % PIE_COLORS.length] : 'transparent',
                                 transform: isHighlighted && hoveredPieIndex === originalIndex ? 'scale(1.2)' : 'scale(1)'
                               } as React.CSSProperties}
                             />
