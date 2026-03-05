@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  migrate-DB:
+    image: ghcr.io/sxjeru/cliproxyapi-monitor-migrate:latest
+    container_name: cliproxyapi-monitor-migrate
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_DRIVER: ${DATABASE_DRIVER:-pg}
+      # 针对neon/Supabase
+      POSTGRES_URL: # 池化连接（适合短连接、高并发函数）
+      POSTGRES_URL_NON_POOLING: # 直连连接（更适合迁移、长事务、某些管理操作）
+    restart: "no"
+    profiles:
+      - migration
+
+  app:
+    image: ghcr.io/sxjeru/cliproxyapi-monitor:latest
+    container_name: cliproxyapi-monitor
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      CLIPROXY_SECRET_KEY: ${CLIPROXY_SECRET_KEY}
+      CLIPROXY_API_BASE_URL: ${CLIPROXY_API_BASE_URL}
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_DRIVER: ${DATABASE_DRIVER:-pg}
+      PASSWORD: ${PASSWORD}
+      # 以下是非必要的参数, 详见readme
+      DATABASE_CA: ${DATABASE_CA}
+      CRON_SECRET: ${CRON_SECRET}
+      TIMEZONE: ${TIMEZONE:-Asia/Shanghai}
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-5}
+      DATABASE_POOL_IDLE_TIMEOUT_MS: ${DATABASE_POOL_IDLE_TIMEOUT_MS:-10000}
+      DATABASE_POOL_CONNECTION_TIMEOUT_MS: ${DATABASE_POOL_CONNECTION_TIMEOUT_MS:-5000}
+      DATABASE_POOL_MAX_USES: ${DATABASE_POOL_MAX_USES:-7500}
+      AUTH_FILES_INSERT_CHUNK_SIZE: ${AUTH_FILES_INSERT_CHUNK_SIZE:-500}
+      USAGE_INSERT_CHUNK_SIZE: ${USAGE_INSERT_CHUNK_SIZE:-1000}
+    restart: unless-stopped

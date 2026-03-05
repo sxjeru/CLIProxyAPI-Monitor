@@ -27,6 +27,36 @@
 	- 默认启用 Vercel Cron（ Pro 可设每小时，Hobby 每天同步一次，请见 [vercel.json](https://github.com/sxjeru/CLIProxyAPI-Monitor/blob/main/vercel.json) ）
 	- Cloudflare Worker / 其他定时器定期请求同步：可见 [cf-worker-sync.js](https://github.com/sxjeru/CLIProxyAPI-Monitor/blob/main/cf-worker-sync.js)
 
+## Docker部署
+
+| compose file service | migrate-DB                                                         | app               |
+| -------------------- | ------------------------------------------------------------------ | ----------------- |
+| =                    | 用来初始化数据库, 建表啊之类的(先启动, 看到DB里面有表了就可以删了) | 服务端app(后启动) |
+
+- 参考[docker-compose.yml](./docker-compose.yml)文件来进行docker的部署
+- 为什么用两个镜像. 因为同时打包的话太大了, 反正数据库也不是会频繁变结构的
+
+| IMAGE                              | DISK USAGE | CONTENT SIZE |
+| ---------------------------------- | ---------- | ------------ |
+| cliproxyapi-monitor:latest         | 331MB      | 80.3MB       |
+| cliproxyapi-monitor-migrate:latest | 580MB      | 96.6MB       |
+
+- 运行完migrate-DB, 会有类似log
+```log
+检查迁移表... (驱动: pg)
+执行数据库迁移...
+✓ 迁移完成
+```
+
+- app的log
+```log
+▲ Next.js 16.1.6
+- Local:         http://fa45b0e6e0ad:3000
+- Network:       http://fa45b0e6e0ad:3000
+✓ Starting...
+✓ Ready in 426ms
+```
+
 ## 预览
 
 |   |   |
