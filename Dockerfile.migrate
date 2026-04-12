@@ -1,0 +1,22 @@
+FROM node:24-alpine
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+ARG DRIZZLE_ORM_VERSION=0.45.1
+ARG PG_VERSION=8.19.0
+ARG NEON_VERSION=1.0.2
+ARG WS_VERSION=8.19.0
+
+COPY scripts ./scripts
+COPY drizzle ./drizzle
+
+# Keep migration image dependencies minimal and separate from app image.
+RUN npm install --omit=dev --no-package-lock \
+  drizzle-orm@${DRIZZLE_ORM_VERSION} \
+  pg@${PG_VERSION} \
+  @neondatabase/serverless@${NEON_VERSION} \
+  ws@${WS_VERSION}
+
+CMD ["node", "scripts/migrate.mjs"]

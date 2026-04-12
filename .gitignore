@@ -12,3 +12,5 @@ yarn-error.log*
 pnpm-debug.log*
 bun.lockb
 .drizzle
+.serena
+CLAUDE.md
