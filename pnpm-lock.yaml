@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@types/react': 19.2.10
+  '@types/react': 19.2.14
   '@types/react-dom': 19.2.3
 
 importers:
@@ -17,7 +17,7 @@ importers:
         version: 1.0.2
       '@vercel/analytics':
         specifier: ^2.0.1
-        version: 2.0.1(next@16.2.3(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)
+        version: 2.0.1(next@16.2.3(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.5))(react@19.2.5))(react@19.2.5)
       '@vercel/postgres':
         specifier: ^0.10.0
         version: 0.10.0
@@ -29,25 +29,25 @@ importers:
         version: 0.45.2(@neondatabase/serverless@1.0.2)(@types/pg@8.20.0)(@vercel/postgres@0.10.0)(pg@8.20.0)
       lucide-react:
         specifier: ^0.577.0
-        version: 0.577.0(react@19.2.4)
+        version: 0.577.0(react@19.2.5)
       next:
         specifier: 16.2.3
-        version: 16.2.3(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 16.2.3(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.5))(react@19.2.5)
       pg:
         specifier: ^8.20.0
         version: 8.20.0
       react:
-        specifier: 19.2.4
-        version: 19.2.4
+        specifier: 19.2.5
+        version: 19.2.5
       react-day-picker:
         specifier: 9.14.0
-        version: 9.14.0(react@19.2.4)
+        version: 9.14.0(react@19.2.5)
       react-dom:
         specifier: 19.2.4
-        version: 19.2.4(react@19.2.4)
+        version: 19.2.4(react@19.2.5)
       recharts:
         specifier: ^3.8.1
-        version: 3.8.1(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react-is@18.3.1)(react@19.2.4)(redux@5.0.1)
+        version: 3.8.1(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.5))(react-is@18.3.1)(react@19.2.5)(redux@5.0.1)
       ws:
         specifier: ^8.20.0
         version: 8.20.0(bufferutil@4.1.0)
@@ -65,11 +65,11 @@ importers:
         specifier: ^8.20.0
         version: 8.20.0
       '@types/react':
-        specifier: 19.2.10
-        version: 19.2.10
+        specifier: 19.2.14
+        version: 19.2.14
       '@types/react-dom':
         specifier: 19.2.3
-        version: 19.2.3(@types/react@19.2.10)
+        version: 19.2.3(@types/react@19.2.14)
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.1
@@ -1088,10 +1088,10 @@ packages:
   '@types/react-dom@19.2.3':
     resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
     peerDependencies:
-      '@types/react': 19.2.10
+      '@types/react': 19.2.14
 
-  '@types/react@19.2.10':
-    resolution: {integrity: sha512-WPigyYuGhgZ/cTPRXB2EwUw+XvsRA3GqHlsP4qteqrnnjDrApbS7MxcGr/hke5iUoeB7E/gQtrs9I37zAJ0Vjw==}
+  '@types/react@19.2.14':
+    resolution: {integrity: sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==}
 
   '@types/use-sync-external-store@0.0.6':
     resolution: {integrity: sha512-zFDAD+tlpf2r4asuHEj0XH6pY6i0g5NeAHPn+15wk3BV6JA69eERFXC1gyGThDkVa1zCyKr5jox1+2LbV/AMLg==}
@@ -2551,7 +2551,7 @@ packages:
   react-redux@9.2.0:
     resolution: {integrity: sha512-ROY9fvHhwOD9ySfrF0wmvu//bKCQ6AeZZq1nJNtbDC+kk5DuSuNX/n6YWYF/SYy7bSba4D4FSz8DJeKY/S/r+g==}
     peerDependencies:
-      '@types/react': 19.2.10
+      '@types/react': 19.2.14
       react: ^18.0 || ^19
       redux: ^5.0.0
     peerDependenciesMeta:
@@ -2560,8 +2560,8 @@ packages:
       redux:
         optional: true
 
-  react@19.2.4:
-    resolution: {integrity: sha512-9nfp2hYpCwOjAN+8TZFGhtWEwgvWHXqESH8qT89AT/lWklpLON22Lc8pEtnpsZz7VmawabSU0gCjnj8aC0euHQ==}
+  react@19.2.5:
+    resolution: {integrity: sha512-llUJLzz1zTUBrskt2pwZgLq59AemifIftw4aB7JxOqf1HY2FDaGDxgwpAPVzHU1kdWabH7FauP4i1oEeer2WCA==}
     engines: {node: '>=0.10.0'}
 
   recharts@3.8.1:
@@ -3491,7 +3491,7 @@ snapshots:
 
   '@nolyfill/is-core-module@1.0.39': {}
 
-  '@reduxjs/toolkit@2.11.2(react-redux@9.2.0(@types/react@19.2.10)(react@19.2.4)(redux@5.0.1))(react@19.2.4)':
+  '@reduxjs/toolkit@2.11.2(react-redux@9.2.0(@types/react@19.2.14)(react@19.2.5)(redux@5.0.1))(react@19.2.5)':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@standard-schema/utils': 0.3.0
@@ -3500,8 +3500,8 @@ snapshots:
       redux-thunk: 3.1.0(redux@5.0.1)
       reselect: 5.1.1
     optionalDependencies:
-      react: 19.2.4
-      react-redux: 9.2.0(@types/react@19.2.10)(react@19.2.4)(redux@5.0.1)
+      react: 19.2.5
+      react-redux: 9.2.0(@types/react@19.2.14)(react@19.2.5)(redux@5.0.1)
 
   '@rtsao/scc@1.1.0': {}
 
@@ -3639,11 +3639,11 @@ snapshots:
       pg-protocol: 1.13.0
       pg-types: 2.2.0
 
-  '@types/react-dom@19.2.3(@types/react@19.2.10)':
+  '@types/react-dom@19.2.3(@types/react@19.2.14)':
     dependencies:
-      '@types/react': 19.2.10
+      '@types/react': 19.2.14
 
-  '@types/react@19.2.10':
+  '@types/react@19.2.14':
     dependencies:
       csstype: 3.2.3
 
@@ -3803,10 +3803,10 @@ snapshots:
   '@unrs/resolver-binding-win32-x64-msvc@1.11.1':
     optional: true
 
-  '@vercel/analytics@2.0.1(next@16.2.3(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)':
+  '@vercel/analytics@2.0.1(next@16.2.3(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.5))(react@19.2.5))(react@19.2.5)':
     optionalDependencies:
-      next: 16.2.3(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      react: 19.2.4
+      next: 16.2.3(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.5))(react@19.2.5)
+      react: 19.2.5
 
   '@vercel/postgres@0.10.0':
     dependencies:
@@ -4919,9 +4919,9 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@0.577.0(react@19.2.4):
+  lucide-react@0.577.0(react@19.2.5):
     dependencies:
-      react: 19.2.4
+      react: 19.2.5
 
   magic-string@0.30.21:
     dependencies:
@@ -4958,16 +4958,16 @@ snapshots:
 
   natural-compare@1.4.0: {}
 
-  next@16.2.3(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
+  next@16.2.3(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.5))(react@19.2.5):
     dependencies:
       '@next/env': 16.2.3
       '@swc/helpers': 0.5.15
       baseline-browser-mapping: 2.10.17
       caniuse-lite: 1.0.30001787
       postcss: 8.4.31
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
-      styled-jsx: 5.1.6(@babel/core@7.29.0)(react@19.2.4)
+      react: 19.2.5
+      react-dom: 19.2.4(react@19.2.5)
+      styled-jsx: 5.1.6(@babel/core@7.29.0)(react@19.2.5)
     optionalDependencies:
       '@next/swc-darwin-arm64': 16.2.3
       '@next/swc-darwin-x64': 16.2.3
@@ -5171,49 +5171,49 @@ snapshots:
 
   queue-microtask@1.2.3: {}
 
-  react-day-picker@9.14.0(react@19.2.4):
+  react-day-picker@9.14.0(react@19.2.5):
     dependencies:
       '@date-fns/tz': 1.4.1
       '@tabby_ai/hijri-converter': 1.0.5
       date-fns: 4.1.0
       date-fns-jalali: 4.1.0-0
-      react: 19.2.4
+      react: 19.2.5
 
-  react-dom@19.2.4(react@19.2.4):
+  react-dom@19.2.4(react@19.2.5):
     dependencies:
-      react: 19.2.4
+      react: 19.2.5
       scheduler: 0.27.0
 
   react-is@16.13.1: {}
 
   react-is@18.3.1: {}
 
-  react-redux@9.2.0(@types/react@19.2.10)(react@19.2.4)(redux@5.0.1):
+  react-redux@9.2.0(@types/react@19.2.14)(react@19.2.5)(redux@5.0.1):
     dependencies:
       '@types/use-sync-external-store': 0.0.6
-      react: 19.2.4
-      use-sync-external-store: 1.6.0(react@19.2.4)
+      react: 19.2.5
+      use-sync-external-store: 1.6.0(react@19.2.5)
     optionalDependencies:
-      '@types/react': 19.2.10
+      '@types/react': 19.2.14
       redux: 5.0.1
 
-  react@19.2.4: {}
+  react@19.2.5: {}
 
-  recharts@3.8.1(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react-is@18.3.1)(react@19.2.4)(redux@5.0.1):
+  recharts@3.8.1(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.5))(react-is@18.3.1)(react@19.2.5)(redux@5.0.1):
     dependencies:
-      '@reduxjs/toolkit': 2.11.2(react-redux@9.2.0(@types/react@19.2.10)(react@19.2.4)(redux@5.0.1))(react@19.2.4)
+      '@reduxjs/toolkit': 2.11.2(react-redux@9.2.0(@types/react@19.2.14)(react@19.2.5)(redux@5.0.1))(react@19.2.5)
       clsx: 2.1.1
       decimal.js-light: 2.5.1
       es-toolkit: 1.45.1
       eventemitter3: 5.0.4
       immer: 10.2.0
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
+      react: 19.2.5
+      react-dom: 19.2.4(react@19.2.5)
       react-is: 18.3.1
-      react-redux: 9.2.0(@types/react@19.2.10)(react@19.2.4)(redux@5.0.1)
+      react-redux: 9.2.0(@types/react@19.2.14)(react@19.2.5)(redux@5.0.1)
       reselect: 5.1.1
       tiny-invariant: 1.3.3
-      use-sync-external-store: 1.6.0(react@19.2.4)
+      use-sync-external-store: 1.6.0(react@19.2.5)
       victory-vendor: 37.3.6
     transitivePeerDependencies:
       - '@types/react'
@@ -5451,10 +5451,10 @@ snapshots:
 
   strip-json-comments@3.1.1: {}
 
-  styled-jsx@5.1.6(@babel/core@7.29.0)(react@19.2.4):
+  styled-jsx@5.1.6(@babel/core@7.29.0)(react@19.2.5):
     dependencies:
       client-only: 0.0.1
-      react: 19.2.4
+      react: 19.2.5
     optionalDependencies:
       '@babel/core': 7.29.0
 
@@ -5594,9 +5594,9 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  use-sync-external-store@1.6.0(react@19.2.4):
+  use-sync-external-store@1.6.0(react@19.2.5):
     dependencies:
-      react: 19.2.4
+      react: 19.2.5
 
   victory-vendor@37.3.6:
     dependencies:
