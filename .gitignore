@@ -12,3 +12,4 @@ yarn-error.log*
 pnpm-debug.log*
 bun.lockb
 .drizzle
+tsconfig.tsbuildinfo
