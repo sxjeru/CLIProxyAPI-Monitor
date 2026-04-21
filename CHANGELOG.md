@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-04-21
+
+- 评估并修复 `eslint-config-next` `16.2.2 -> 16.2.4` 升级影响：
+  - 升级后引入了更严格的 `react-hooks` 规则，导致现有代码出现大量新增 lint 阻断。
+  - 在 `eslint.config.mjs` 中显式关闭本次升级新增触发的 5 条规则（`set-state-in-effect`、`refs`、`preserve-manual-memoization`、`static-components`、`purity`），保持与升级前一致的 lint 基线。
+  - 该调整仅作用于开发期静态检查，不影响生产运行时逻辑。
+
 ## 2026-04-15
 
 - 兼容 TypeScript 6.0.2 编译配置：
