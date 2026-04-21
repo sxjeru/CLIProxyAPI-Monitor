@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-04-21
+
+- 新增 GitHub Actions `lint` 工作流（`.github/workflows/lint.yml`）：
+  - 在 `push`（`main/master`）与 `pull_request` 触发，统一执行 `pnpm install --frozen-lockfile` 与 `pnpm lint`。
+  - 通过 CI 自动校验代码风格，减少未被本地发现的 lint 问题进入主分支。
+
 ## 2026-04-15
 
 - 兼容 TypeScript 6.0.2 编译配置：
