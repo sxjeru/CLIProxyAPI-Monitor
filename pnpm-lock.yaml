@@ -49,8 +49,8 @@ importers:
         specifier: ^3.8.1
         version: 3.8.1(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react-is@18.3.1)(react@19.2.5)(redux@5.0.1)
       ws:
-        specifier: ^8.20.0
-        version: 8.20.0(bufferutil@4.1.0)
+        specifier: ^8.20.1
+        version: 8.20.1(bufferutil@4.1.0)
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -2903,8 +2903,8 @@ packages:
     resolution: {integrity: sha512-BN22B5eaMMI9UMtjrGd5g5eCYPpCPDUy0FJXbYsaT5zYxjFOckS53SQDE3pWkVoWpHXVb3BrYcEN4Twa55B5cA==}
     engines: {node: '>=0.10.0'}
 
-  ws@8.20.0:
-    resolution: {integrity: sha512-sAt8BhgNbzCtgGbt2OxmpuryO63ZoDk/sqaB/znQm94T4fCEsy/yV+7CdC1kJhOU9lboAEU7R3kquuycDoibVA==}
+  ws@8.20.1:
+    resolution: {integrity: sha512-It4dO0K5v//JtTXuPkfEOaI3uUN87iYPnqo/ZzqCoG3g8uhA66QUMs/SrM0YK7/NAu+r4LMh/9dq2A7k+rHs+w==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -3838,7 +3838,7 @@ snapshots:
     dependencies:
       '@neondatabase/serverless': 0.9.5
       bufferutil: 4.1.0
-      ws: 8.20.0(bufferutil@4.1.0)
+      ws: 8.20.1(bufferutil@4.1.0)
     transitivePeerDependencies:
       - utf-8-validate
 
@@ -5689,7 +5689,7 @@ snapshots:
 
   word-wrap@1.2.5: {}
 
-  ws@8.20.0(bufferutil@4.1.0):
+  ws@8.20.1(bufferutil@4.1.0):
     optionalDependencies:
       bufferutil: 4.1.0
 
