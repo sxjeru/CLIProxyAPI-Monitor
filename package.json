@@ -40,7 +40,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.7",
     "postcss": "^8.5.14",
-    "tailwindcss": "^4.3.0",
+    "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3"
   },
   "pnpm": {
