@@ -160,10 +160,25 @@ function normalizeRecord(record) {
 function redactUsageRecord(record) {
   if (!record || typeof record !== 'object') return record;
 
+  // Never put the raw api_key into the returned object (CodeQL taint + log safety).
+  // endpoint may equal api_key after normalizeRecord; redact both when present.
+  const { api_key: _apiKey, endpoint, ...rest } = record;
+  const hasApiKey = Boolean(_apiKey);
   return {
-    ...record,
-    api_key: record.api_key ? '[redacted]' : record.api_key,
+    ...rest,
+    api_key: hasApiKey ? '[redacted]' : undefined,
+    endpoint: hasApiKey ? '[redacted]' : endpoint,
   };
+}
+
+function redactRawUsageRecord(rawRecord) {
+  if (typeof rawRecord !== 'string') return '[redacted-raw]';
+  try {
+    return redactUsageRecord(JSON.parse(rawRecord));
+  } catch {
+    // Unparseable payload may still contain secrets; never log clear text.
+    return '[redacted-raw]';
+  }
 }
 
 function getRecordTokenTotal(record) {
@@ -183,11 +198,13 @@ function logUsageRecordDiagnostic(record, rawRecord) {
   if (!CONFIG.debugUsageRecords && !CONFIG.debugRawUsageRecords) return;
 
   const tokenTotal = getRecordTokenTotal(record);
+  // Construct summary without ever assigning the raw api_key value into it.
+  const hasApiKey = Boolean(record.api_key);
   const summary = {
     timestamp: record.timestamp,
-    endpoint: record.endpoint,
+    endpoint: hasApiKey ? '[redacted]' : record.endpoint,
     auth_type: record.auth_type,
-    api_key: record.api_key ? '[redacted]' : record.api_key,
+    api_key: hasApiKey ? '[redacted]' : undefined,
     provider: record.provider,
     model: record.model,
     alias: record.alias,
@@ -204,11 +221,7 @@ function logUsageRecordDiagnostic(record, rawRecord) {
   }
 
   if (CONFIG.debugRawUsageRecords) {
-    try {
-      console.log('[usage-debug] queue record raw:', redactUsageRecord(JSON.parse(rawRecord)));
-    } catch {
-      console.log('[usage-debug] queue record raw:', rawRecord);
-    }
+    console.log('[usage-debug] queue record raw:', redactRawUsageRecord(rawRecord));
   }
 }
 
@@ -381,13 +394,13 @@ async function drainQueue() {
         const parsed = JSON.parse(rawRecord);
         const normalized = normalizeRecord(parsed);
         if (!normalized) {
-          console.error('Skipped invalid record:', rawRecord);
+          console.error('Skipped invalid record:', redactRawUsageRecord(rawRecord));
           continue;
         }
         logUsageRecordDiagnostic(normalized, rawRecord);
         parsedRecords.push(normalized);
       } catch (e) {
-        console.error('Failed to parse record:', rawRecord);
+        console.error('Failed to parse record:', redactRawUsageRecord(rawRecord));
       }
     }
 
